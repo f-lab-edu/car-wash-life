@@ -1,6 +1,7 @@
 package me.ngyu.carwashlife.application.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -35,6 +36,16 @@ import org.springframework.web.bind.annotation.RestController;
 @Import(AuthApiIntegrationTest.CurrentMemberController.class)
 class AuthApiIntegrationTest {
 
+  private static final String SIGNUP_REQUEST = """
+      {
+        "email": "User@Example.com",
+        "password": "WashLife!123",
+        "residenceRegionCode": "11680",
+        "vehicleType": "SUV",
+        "washExperience": "OCCASIONAL"
+      }
+      """;
+
   @Autowired
   private MockMvc mockMvc;
 
@@ -56,11 +67,11 @@ class AuthApiIntegrationTest {
   void signupStoresRequiredAndOptionalMemberInformation() throws Exception {
     mockMvc.perform(post("/auth/signup")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(signupJson()))
+            .content(SIGNUP_REQUEST))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.memberId").isNumber())
         .andExpect(jsonPath("$.email").value("user@example.com"))
-        .andExpect(jsonPath("$.createdAt").exists());
+        .andExpect(jsonPath("$.createdAt", endsWith("+09:00")));
 
     MemberEntity member = memberRepository.findByEmail("user@example.com").orElseThrow();
     assertThat(passwordEncoder.matches("WashLife!123", member.getPassword())).isTrue();
@@ -77,7 +88,7 @@ class AuthApiIntegrationTest {
 
     mockMvc.perform(post("/auth/signup")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(signupJson()))
+            .content(SIGNUP_REQUEST))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("DUPLICATE_EMAIL"));
   }
@@ -171,21 +182,9 @@ class AuthApiIntegrationTest {
   private MemberEntity signup() throws Exception {
     mockMvc.perform(post("/auth/signup")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(signupJson()))
+            .content(SIGNUP_REQUEST))
         .andExpect(status().isCreated());
     return memberRepository.findByEmail("user@example.com").orElseThrow();
-  }
-
-  private String signupJson() {
-    return """
-        {
-          "email": "User@Example.com",
-          "password": "WashLife!123",
-          "residenceRegionCode": "11680",
-          "vehicleType": "SUV",
-          "washExperience": "OCCASIONAL"
-        }
-        """;
   }
 
   private String loginJson(String password) {

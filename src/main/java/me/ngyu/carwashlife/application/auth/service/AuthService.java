@@ -1,6 +1,7 @@
 package me.ngyu.carwashlife.application.auth.service;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Locale;
 import me.ngyu.carwashlife.application.auth.api.dto.LoginDto;
 import me.ngyu.carwashlife.application.auth.api.dto.SignupDto;
@@ -16,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
+
+  private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
 
   private final MemberRepository memberRepository;
   private final PasswordEncoder passwordEncoder;
@@ -44,7 +47,7 @@ public class AuthService {
         request.residenceRegionCode(),
         request.vehicleType(),
         request.washExperience(),
-        OffsetDateTime.now()
+        OffsetDateTime.now(SERVICE_ZONE_ID)
     );
 
     try {

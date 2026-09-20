@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AccessTokenProvider {
 
-  public static final long EXPIRES_IN_SECONDS = 24 * 60 * 60;
+  public static final long EXPIRES_IN_SECONDS = 24L * 60 * 60;
 
   private static final String HMAC_SHA_256 = "HmacSHA256";
   private static final String HEADER = encode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
