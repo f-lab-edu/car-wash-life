@@ -1,4 +1,4 @@
-package me.ngyu.carwashlife.infrastructure.persistence.entity;
+package me.ngyu.carwashlife.application.member.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,13 +9,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
-import me.ngyu.carwashlife.application.member.domain.MemberStatus;
-import me.ngyu.carwashlife.application.member.domain.VehicleType;
-import me.ngyu.carwashlife.application.member.domain.WashExperience;
 
 @Entity
 @Table(name = "members")
-public class MemberEntity {
+public class Member {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,10 +42,10 @@ public class MemberEntity {
   @Column(nullable = false, updatable = false)
   private OffsetDateTime createdAt;
 
-  protected MemberEntity() {
+  protected Member() {
   }
 
-  private MemberEntity(
+  private Member(
       String email,
       String password,
       String residenceRegionCode,
@@ -66,7 +63,7 @@ public class MemberEntity {
     this.createdAt = createdAt;
   }
 
-  public static MemberEntity create(
+  public static Member create(
       String email,
       String encodedPassword,
       String residenceRegionCode,
@@ -74,7 +71,7 @@ public class MemberEntity {
       WashExperience washExperience,
       OffsetDateTime createdAt
   ) {
-    return new MemberEntity(
+    return new Member(
         email,
         encodedPassword,
         residenceRegionCode,

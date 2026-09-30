@@ -12,10 +12,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
+import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.application.member.domain.VehicleType;
 import me.ngyu.carwashlife.application.member.domain.WashExperience;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
-import me.ngyu.carwashlife.infrastructure.persistence.entity.MemberEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,7 +73,7 @@ class AuthApiIntegrationTest {
         .andExpect(jsonPath("$.email").value("user@example.com"))
         .andExpect(jsonPath("$.createdAt", endsWith("+09:00")));
 
-    MemberEntity member = memberRepository.findByEmail("user@example.com").orElseThrow();
+    Member member = memberRepository.findByEmail("user@example.com").orElseThrow();
     assertThat(passwordEncoder.matches("WashLife!123", member.getPassword())).isTrue();
     assertThat(member.getPassword()).isNotEqualTo("WashLife!123");
     assertThat(member.getResidenceRegionCode()).isEqualTo("11680");
@@ -104,7 +104,7 @@ class AuthApiIntegrationTest {
 
   @Test
   void loginIssuesAccessTokenValidForTwentyFourHours() throws Exception {
-    MemberEntity member = signup();
+    Member member = signup();
     long issuedAfter = Instant.now().getEpochSecond();
 
     MvcResult result = mockMvc.perform(post("/auth/login")
@@ -150,7 +150,7 @@ class AuthApiIntegrationTest {
 
   @Test
   void loginRejectsInactiveAccount() throws Exception {
-    MemberEntity member = signup();
+    Member member = signup();
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", member.getId());
 
     mockMvc.perform(post("/auth/login")
@@ -179,7 +179,7 @@ class AuthApiIntegrationTest {
         .andExpect(jsonPath("$.memberId", greaterThan(0)));
   }
 
-  private MemberEntity signup() throws Exception {
+  private Member signup() throws Exception {
     mockMvc.perform(post("/auth/signup")
             .contentType(MediaType.APPLICATION_JSON)
             .content(SIGNUP_REQUEST))

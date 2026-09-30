@@ -5,11 +5,11 @@ import java.time.ZoneId;
 import java.util.Locale;
 import me.ngyu.carwashlife.application.auth.api.dto.LoginDto;
 import me.ngyu.carwashlife.application.auth.api.dto.SignupDto;
+import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
 import me.ngyu.carwashlife.common.security.AccessTokenProvider;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
-import me.ngyu.carwashlife.infrastructure.persistence.entity.MemberEntity;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -41,7 +41,7 @@ public class AuthService {
       throw new ApplicationException(ErrorCode.DUPLICATE_EMAIL);
     }
 
-    MemberEntity member = MemberEntity.create(
+    Member member = Member.create(
         email,
         passwordEncoder.encode(request.password()),
         request.residenceRegionCode(),
@@ -51,7 +51,7 @@ public class AuthService {
     );
 
     try {
-      MemberEntity savedMember = memberRepository.saveAndFlush(member);
+      Member savedMember = memberRepository.saveAndFlush(member);
       return new SignupDto.Response(
           savedMember.getId(),
           savedMember.getEmail(),
@@ -64,7 +64,7 @@ public class AuthService {
 
   @Transactional(readOnly = true)
   public LoginDto.Response login(LoginDto.Request request) {
-    MemberEntity member = memberRepository.findByEmail(normalizeEmail(request.email()))
+    Member member = memberRepository.findByEmail(normalizeEmail(request.email()))
         .orElseThrow(() -> new ApplicationException(ErrorCode.INVALID_CREDENTIALS));
 
     if (!passwordEncoder.matches(request.password(), member.getPassword())) {

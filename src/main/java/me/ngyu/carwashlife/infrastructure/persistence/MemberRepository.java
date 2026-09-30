@@ -1,12 +1,12 @@
 package me.ngyu.carwashlife.infrastructure.persistence;
 
 import java.util.Optional;
-import me.ngyu.carwashlife.infrastructure.persistence.entity.MemberEntity;
+import me.ngyu.carwashlife.application.member.domain.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface MemberRepository extends JpaRepository<MemberEntity, Long> {
+public interface MemberRepository extends JpaRepository<Member, Long> {
 
   boolean existsByEmail(String email);
 
-  Optional<MemberEntity> findByEmail(String email);
+  Optional<Member> findByEmail(String email);
 }

@@ -26,7 +26,7 @@
 - 한 기능의 요청과 응답이 한 쌍이면 `LoginDto.Request`, `LoginDto.Response`처럼 기능 단위 외부 클래스와 중첩 타입으로 묶는다.
 - DTO 외부 클래스는 인스턴스화를 막는 private 생성자를 둔다. 상속을 막기 위한 `final`은 사용하지 않는다.
 - ArgumentResolver는 인증 사용자처럼 여러 API에서 반복적으로 해석하는 값이나 복잡한 변환이 있을 때만 도입한다. 단순 RequestBody 바인딩을 위해 만들지 않는다.
-- JPA Entity는 `infrastructure/persistence/entity`에 두며 `*Entity`로 명명한다. `domain` 패키지에 JPA Entity를 두지 않는다.
+- 현재는 JPA Entity를 `application/{feature}/domain`에 두고 도메인 모델로 사용한다. Entity 전용 패키지와 `*Entity` 접미사를 두지 않는다.
 - Spring Data Repository는 `infrastructure/persistence`에 둔다.
 - 별도 도메인 모델은 비즈니스 규칙과 영속성 모델의 변경 이유가 실제로 달라질 때 분리한다. 계층 분리만을 목적으로 Entity와 동일한 도메인 모델 및 매핑 코드를 미리 만들지 않는다.
 - API, service, persistence 간 타입 의존 방향을 변경할 때는 관련 호출부와 매핑 책임을 함께 검토한다.
