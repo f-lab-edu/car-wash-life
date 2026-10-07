@@ -57,12 +57,10 @@ public class CarWash {
     this.operatorManaged = false;
   }
 
-  public static CarWash create(
-          String name,
-          double latitude,
-          double longitude,
-          OffsetDateTime createdAt
-  ) {
+  public static CarWash create(String name,
+                               double latitude,
+                               double longitude,
+                               OffsetDateTime createdAt) {
     return new CarWash(name, latitude, longitude, createdAt);
   }
 
