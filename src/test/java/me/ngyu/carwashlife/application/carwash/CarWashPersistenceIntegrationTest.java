@@ -27,38 +27,39 @@ class CarWashPersistenceIntegrationTest {
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, submittedAt);
     entityManager.persist(carWash);
     CarWashHistory firstHistory = CarWashHistory.builder()
-        .carWash(carWash)
-        .memberId(1L)
-        .type(CarWashHistoryType.REGISTRATION)
-        .visitExperience(VisitExperience.NOT_USED)
-        .observedAt(submittedAt)
-        .submittedAt(submittedAt)
-        .name("세차생활")
-        .address("서울시")
-        .latitude(37.5)
-        .longitude(127.0)
-        .build();
+                                                .carWash(carWash)
+                                                .memberId(1L)
+                                                .type(CarWashHistoryType.REGISTRATION)
+                                                .visitExperience(VisitExperience.NOT_USED)
+                                                .observedAt(submittedAt)
+                                                .submittedAt(submittedAt)
+                                                .name("세차생활")
+                                                .address("서울시")
+                                                .latitude(37.5)
+                                                .longitude(127.0)
+                                                .build();
     entityManager.persist(firstHistory);
     carWash.selectRepresentativeHistory(firstHistory, submittedAt);
     entityManager.flush();
     CarWashHistory nextHistory = CarWashHistory.builder()
-        .carWash(carWash)
-        .memberId(2L)
-        .type(CarWashHistoryType.MODIFICATION)
-        .visitExperience(VisitExperience.USED)
-        .observedAt(submittedAt.plusHours(1))
-        .submittedAt(submittedAt.plusHours(1))
-        .name("수정한 세차생활")
-        .address("서울시")
-        .latitude(37.6)
-        .longitude(127.1)
-        .foamLanceAvailability(FacilityAvailability.AVAILABLE)
-        .highPressureWaterPrice(3000)
-        .airGunAvailability(FacilityAvailability.AVAILABLE)
-        .airGunPrice(0)
-        .washBayCount(6)
-        .dryingBayCount(10)
-        .build();
+                                               .carWash(carWash)
+                                               .baseHistory(firstHistory)
+                                               .memberId(2L)
+                                               .type(CarWashHistoryType.MODIFICATION)
+                                               .visitExperience(VisitExperience.USED)
+                                               .observedAt(submittedAt.plusHours(1))
+                                               .submittedAt(submittedAt.plusHours(1))
+                                               .name("수정한 세차생활")
+                                               .address("서울시")
+                                               .latitude(37.6)
+                                               .longitude(127.1)
+                                               .foamLanceAvailability(FacilityAvailability.AVAILABLE)
+                                               .highPressureWaterPrice(3000)
+                                               .airGunAvailability(FacilityAvailability.AVAILABLE)
+                                               .airGunPrice(0)
+                                               .washBayCount(6)
+                                               .dryingBayCount(10)
+                                               .build();
     entityManager.persist(nextHistory);
 
     carWash.selectRepresentativeHistory(nextHistory, submittedAt.plusHours(1));

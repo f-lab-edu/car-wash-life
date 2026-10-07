@@ -1,0 +1,17 @@
+package me.ngyu.carwashlife.application.carwash.domain;
+
+public enum CarWashHistoryField {
+  NAME,
+  ADDRESS,
+  LATITUDE,
+  LONGITUDE,
+  HIGH_PRESSURE_WATER_PRICE,
+  FOAM_LANCE_AVAILABILITY,
+  FOAM_GUN_PRICE,
+  AIR_GUN_AVAILABILITY,
+  AIR_GUN_PRICE,
+  VACUUM_AVAILABILITY,
+  VACUUM_PRICE,
+  WASH_BAY_COUNT,
+  DRYING_BAY_COUNT
+}

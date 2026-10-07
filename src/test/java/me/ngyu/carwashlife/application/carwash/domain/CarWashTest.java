@@ -26,16 +26,16 @@ class CarWashTest {
   void selectingHistoryUpdatesRepresentativeNameAndCoordinatesTogether() {
     CarWash carWash = CarWash.create("기존 이름", 37.5, 127.0, CREATED_AT);
     CarWashHistory history = CarWashHistory.builder()
-        .carWash(carWash)
-        .memberId(1L)
-        .type(CarWashHistoryType.REGISTRATION)
-        .visitExperience(VisitExperience.NOT_USED)
-        .observedAt(CREATED_AT)
-        .submittedAt(CREATED_AT)
-        .name("변경된 이름")
-        .latitude(37.6)
-        .longitude(127.1)
-        .build();
+                                           .carWash(carWash)
+                                           .memberId(1L)
+                                           .type(CarWashHistoryType.REGISTRATION)
+                                           .visitExperience(VisitExperience.NOT_USED)
+                                           .observedAt(CREATED_AT)
+                                           .submittedAt(CREATED_AT)
+                                           .name("변경된 이름")
+                                           .latitude(37.6)
+                                           .longitude(127.1)
+                                           .build();
     OffsetDateTime selectedAt = CREATED_AT.plusMinutes(1);
 
     carWash.selectRepresentativeHistory(history, selectedAt);
@@ -55,7 +55,7 @@ class CarWashTest {
     CarWashHistory otherHistory = historyOf(otherCarWash);
 
     assertThatThrownBy(() -> carWash.selectRepresentativeHistory(otherHistory, CREATED_AT))
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
 
     assertThat(carWash.getTargetHistory()).isNull();
     assertThat(carWash.getName()).isEqualTo("세차생활");
@@ -81,16 +81,17 @@ class CarWashTest {
     CarWashHistory previousHistory = historyOf(carWash);
     carWash.selectRepresentativeHistory(previousHistory, CREATED_AT);
     CarWashHistory newHistory = CarWashHistory.builder()
-        .carWash(carWash)
-        .memberId(2L)
-        .type(CarWashHistoryType.MODIFICATION)
-        .visitExperience(VisitExperience.USED)
-        .observedAt(CREATED_AT.plusHours(1))
-        .submittedAt(CREATED_AT.plusHours(1))
-        .name("수정한 이름")
-        .latitude(37.6)
-        .longitude(127.1)
-        .build();
+                                              .carWash(carWash)
+                                              .baseHistory(previousHistory)
+                                              .memberId(2L)
+                                              .type(CarWashHistoryType.MODIFICATION)
+                                              .visitExperience(VisitExperience.USED)
+                                              .observedAt(CREATED_AT.plusHours(1))
+                                              .submittedAt(CREATED_AT.plusHours(1))
+                                              .name("수정한 이름")
+                                              .latitude(37.6)
+                                              .longitude(127.1)
+                                              .build();
 
     carWash.selectRepresentativeHistory(newHistory, CREATED_AT.plusHours(1));
 
@@ -106,42 +107,42 @@ class CarWashTest {
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, CREATED_AT);
 
     assertThatThrownBy(() -> carWash.selectRepresentativeHistory(
-        historyOf(carWash), CREATED_AT.minusSeconds(1)))
-        .isInstanceOf(IllegalArgumentException.class);
+            historyOf(carWash), CREATED_AT.minusSeconds(1)))
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"", " ", "\t"})
   void blankNameIsRejected(String name) {
     assertThatThrownBy(() -> CarWash.create(name, 37.5, 127.0, CREATED_AT))
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @ParameterizedTest
   @ValueSource(doubles = {-90.1, 90.1, Double.NaN, Double.POSITIVE_INFINITY})
   void invalidLatitudeIsRejected(double latitude) {
     assertThatThrownBy(() -> CarWash.create("세차생활", latitude, 127.0, CREATED_AT))
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @ParameterizedTest
   @ValueSource(doubles = {-180.1, 180.1, Double.NaN, Double.NEGATIVE_INFINITY})
   void invalidLongitudeIsRejected(double longitude) {
     assertThatThrownBy(() -> CarWash.create("세차생활", 37.5, longitude, CREATED_AT))
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   private CarWashHistory historyOf(CarWash carWash) {
     return CarWashHistory.builder()
-        .carWash(carWash)
-        .memberId(1L)
-        .type(CarWashHistoryType.REGISTRATION)
-        .visitExperience(VisitExperience.NOT_USED)
-        .observedAt(CREATED_AT)
-        .submittedAt(CREATED_AT)
-        .name("세차생활")
-        .latitude(37.5)
-        .longitude(127.0)
-        .build();
+                         .carWash(carWash)
+                         .memberId(1L)
+                         .type(CarWashHistoryType.REGISTRATION)
+                         .visitExperience(VisitExperience.NOT_USED)
+                         .observedAt(CREATED_AT)
+                         .submittedAt(CREATED_AT)
+                         .name("세차생활")
+                         .latitude(37.5)
+                         .longitude(127.0)
+                         .build();
   }
 }

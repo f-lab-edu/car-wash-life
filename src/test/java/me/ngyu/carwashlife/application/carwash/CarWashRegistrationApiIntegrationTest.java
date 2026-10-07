@@ -82,7 +82,7 @@ class CarWashRegistrationApiIntegrationTest {
   @BeforeEach
   void setUp() {
     jdbcTemplate.update("update car_wash set target_history_id = null");
-    historyRepository.deleteAll();
+    historyRepository.deleteAllInBatch();
     carWashRepository.deleteAll();
     memberRepository.deleteAll();
     member = memberRepository.saveAndFlush(Member.create(
