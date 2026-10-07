@@ -88,7 +88,7 @@ class CarWashModificationApiIntegrationTest {
   }
 
   @Test
-  void modificationAppendsASnapshotAndPreservesTheOriginalAndRepresentative() throws Exception {
+  void modificationAppendsASnapshotPreservesTheOriginalAndReflectsTheHigherConfidenceHistory() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .header("Authorization", "Bearer " + token)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -123,7 +123,7 @@ class CarWashModificationApiIntegrationTest {
     assertThat(original.getVisitExperience()).isEqualTo(VisitExperience.NOT_USED);
     assertThat(original.getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
     CarWash carWash = carWashRepository.findById(carWashId).orElseThrow();
-    assertThat(carWash.getTargetHistory().getId()).isEqualTo(baseHistoryId);
+    assertThat(carWash.getTargetHistory().getId()).isEqualTo(next.getId());
     assertThat(carWash.getName()).isEqualTo("세차생활");
     assertThat(carWash.getLatitude()).isEqualTo(37.5);
     assertThat(carWash.getLongitude()).isEqualTo(127.0);
@@ -131,7 +131,7 @@ class CarWashModificationApiIntegrationTest {
   }
 
   @Test
-  void aNameAndLocationCorrectionDoesNotYetChangeTheMaster() throws Exception {
+  void aHigherConfidenceNameAndLocationCorrectionUpdatesTheMasterTogether() throws Exception {
     String request = modification(baseHistoryId, 3000).replace("세차생활", "새 세차생활")
                                                       .replace("37.5", "37.6")
                                                       .replace("127.0", "127.1");
@@ -141,10 +141,10 @@ class CarWashModificationApiIntegrationTest {
            .andExpect(status().isCreated());
 
     CarWash master = carWashRepository.findById(carWashId).orElseThrow();
-    assertThat(master.getTargetHistory().getId()).isEqualTo(baseHistoryId);
-    assertThat(master.getName()).isEqualTo("세차생활");
-    assertThat(master.getLatitude()).isEqualTo(37.5);
-    assertThat(master.getLongitude()).isEqualTo(127.0);
+    assertThat(master.getTargetHistory().getId()).isEqualTo(modificationHistory().getId());
+    assertThat(master.getName()).isEqualTo("새 세차생활");
+    assertThat(master.getLatitude()).isEqualTo(37.6);
+    assertThat(master.getLongitude()).isEqualTo(127.1);
   }
 
   @Test
