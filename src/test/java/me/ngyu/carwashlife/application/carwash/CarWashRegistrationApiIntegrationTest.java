@@ -22,6 +22,7 @@ import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -95,6 +96,7 @@ class CarWashRegistrationApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("등록 요청을 제출하면 작성자와 전체 정보 이력을 저장하고 해당 이력을 원장에 대표로 반영한다.")
   void registrationPersistsSnapshotAndReflectsItsRepresentativeInformation() throws Exception {
     mockMvc.perform(post("/car-washes")
                             .header("Authorization", "Bearer " + token)
@@ -139,6 +141,7 @@ class CarWashRegistrationApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("필수 정보만 등록하면 입력하지 않은 시설과 가격 및 베이 수를 미확인 상태로 저장한다.")
   void unknownFacilitiesAndPricesRemainUnknownForMinimalRegistration() throws Exception {
     mockMvc.perform(post("/car-washes")
                             .header("Authorization", "Bearer " + token)
@@ -164,6 +167,7 @@ class CarWashRegistrationApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("관찰한 지 90일이 넘은 정보를 등록하면 최근성 점수를 가산하지 않는다.")
   void observationsOlderThanNinetyDaysDoNotReceiveTheRecencyPoint() throws Exception {
     mockMvc.perform(post("/car-washes")
                             .header("Authorization", "Bearer " + token)
@@ -173,7 +177,8 @@ class CarWashRegistrationApiIntegrationTest {
            .andExpect(jsonPath("$.confidence").value(3));
   }
 
-  @ParameterizedTest(name = "invalid {0}")
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("등록 요청값이 올바르지 않으면 원장과 이력을 저장하지 않고 거절한다.")
   @MethodSource("invalidRequests")
   void invalidRequestsDoNotPersistAnything(String scenario, String request) throws Exception {
     mockMvc.perform(post("/car-washes")
@@ -213,6 +218,7 @@ class CarWashRegistrationApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("사용 불가 시설에 가격을 입력하면 등록을 거절하고 먼저 저장한 원장도 롤백한다.")
   void contradictoryFacilityPriceRollsBackTheAlreadySavedMaster() throws Exception {
     mockMvc.perform(post("/car-washes")
                             .header("Authorization", "Bearer " + token)
@@ -227,6 +233,7 @@ class CarWashRegistrationApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("인증 없이 세차장을 등록하면 원장과 이력을 만들지 않고 거절한다.")
   void registrationRequiresAuthentication() throws Exception {
     mockMvc.perform(post("/car-washes")
                             .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
@@ -237,6 +244,7 @@ class CarWashRegistrationApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("잘못된 토큰으로 세차장을 등록하면 원장과 이력을 만들지 않고 거절한다.")
   void malformedTokenCannotRegister() throws Exception {
     mockMvc.perform(post("/car-washes")
                             .header("Authorization", "Bearer invalid-token")
@@ -248,6 +256,7 @@ class CarWashRegistrationApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("토큰 발급 뒤 정지된 회원이 세차장을 등록하면 원장과 이력을 만들지 않고 거절한다.")
   void aTokenIssuedBeforeAccountSuspensionCannotRegister() throws Exception {
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", member.getId());
 
@@ -262,6 +271,7 @@ class CarWashRegistrationApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("삭제된 회원의 토큰으로 세차장을 등록하면 원장과 이력을 만들지 않고 거절한다.")
   void aTokenForADeletedAccountCannotRegister() throws Exception {
     memberRepository.deleteById(member.getId());
 

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.OffsetDateTime;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -13,6 +14,7 @@ class CarWashTest {
   private static final OffsetDateTime CREATED_AT = OffsetDateTime.parse("2026-10-05T10:00:00+09:00");
 
   @Test
+  @DisplayName("세차장을 생성하면 운영자 관리 여부를 거짓으로 두고 대표 이력 없이 등록 시점을 저장한다.")
   void newCarWashIsNotOperatorManagedAndHasNoRepresentativeHistory() {
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, CREATED_AT);
 
@@ -23,6 +25,7 @@ class CarWashTest {
   }
 
   @Test
+  @DisplayName("대표 이력을 선택하면 이름과 좌표 및 갱신 시점을 함께 반영한다.")
   void selectingHistoryUpdatesRepresentativeNameAndCoordinatesTogether() {
     CarWash carWash = CarWash.create("기존 이름", 37.5, 127.0, CREATED_AT);
     CarWashHistory history = CarWashHistory.builder()
@@ -49,6 +52,7 @@ class CarWashTest {
   }
 
   @Test
+  @DisplayName("다른 세차장의 이력을 대표로 선택하려 하면 기존 원장 정보를 유지하고 거절한다.")
   void selectingAnotherCarWashHistoryLeavesRepresentativeInformationUnchanged() {
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, CREATED_AT);
     CarWash otherCarWash = CarWash.create("다른 세차장", 37.6, 127.1, CREATED_AT);
@@ -65,6 +69,7 @@ class CarWashTest {
   }
 
   @Test
+  @DisplayName("같은 이력을 다시 대표로 선택하면 원장의 갱신 시점을 바꾸지 않는다.")
   void selectingTheSameHistoryDoesNotChangeUpdatedAt() {
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, CREATED_AT);
     CarWashHistory history = historyOf(carWash);
@@ -76,6 +81,7 @@ class CarWashTest {
   }
 
   @Test
+  @DisplayName("새 이력을 대표로 선택해도 이전 이력의 이름과 좌표 및 경험 유형을 보존한다.")
   void selectingAHistoryDoesNotMutateThePreviousHistory() {
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, CREATED_AT);
     CarWashHistory previousHistory = historyOf(carWash);
@@ -103,6 +109,7 @@ class CarWashTest {
   }
 
   @Test
+  @DisplayName("대표 정보 반영 시점이 최초 등록보다 빠르면 이력 선택을 거절한다.")
   void selectingHistoryBeforeRegistrationIsRejected() {
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, CREATED_AT);
 
@@ -111,21 +118,24 @@ class CarWashTest {
             .isInstanceOf(IllegalArgumentException.class);
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("세차장 이름이 비어 있거나 공백뿐이면 생성을 거절한다.")
   @ValueSource(strings = {"", " ", "\t"})
   void blankNameIsRejected(String name) {
     assertThatThrownBy(() -> CarWash.create(name, 37.5, 127.0, CREATED_AT))
             .isInstanceOf(IllegalArgumentException.class);
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("위도가 허용 범위를 벗어나거나 유한하지 않으면 생성을 거절한다.")
   @ValueSource(doubles = {-90.1, 90.1, Double.NaN, Double.POSITIVE_INFINITY})
   void invalidLatitudeIsRejected(double latitude) {
     assertThatThrownBy(() -> CarWash.create("세차생활", latitude, 127.0, CREATED_AT))
             .isInstanceOf(IllegalArgumentException.class);
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("경도가 허용 범위를 벗어나거나 유한하지 않으면 생성을 거절한다.")
   @ValueSource(doubles = {-180.1, 180.1, Double.NaN, Double.NEGATIVE_INFINITY})
   void invalidLongitudeIsRejected(double longitude) {
     assertThatThrownBy(() -> CarWash.create("세차생활", 37.5, longitude, CREATED_AT))

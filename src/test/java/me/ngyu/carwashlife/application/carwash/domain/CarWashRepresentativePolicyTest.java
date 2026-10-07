@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -16,6 +17,7 @@ class CarWashRepresentativePolicyTest {
   private final CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, NOW.minusDays(200));
 
   @Test
+  @DisplayName("관찰 시점이 더 늦은 이력이 있어도 신뢰도가 가장 높은 이력을 대표로 선택한다.")
   void highestScoreWinsEvenWhenALowerScoreWasObservedMoreRecently() {
     CarWashHistory used = history(1L, VisitExperience.USED, NOW.minusDays(100), NOW.minusDays(50));
     CarWashHistory recent = history(2L, VisitExperience.NOT_USED, NOW, NOW);
@@ -27,6 +29,7 @@ class CarWashRepresentativePolicyTest {
   }
 
   @Test
+  @DisplayName("신뢰도가 같으면 제출 시점과 식별자보다 최신 관찰 시점을 우선하여 대표 이력을 선택한다.")
   void equalScoresPreferTheLatestObservationBeforeSubmissionTimeOrId() {
     CarWashHistory older = history(10L, VisitExperience.USED, NOW.minusDays(2), NOW);
     CarWashHistory recent = history(1L, VisitExperience.USED, NOW.minusDays(1), NOW.minusDays(1));
@@ -35,6 +38,7 @@ class CarWashRepresentativePolicyTest {
   }
 
   @Test
+  @DisplayName("신뢰도와 관찰 시점이 같으면 식별자보다 최신 제출 시점을 우선하여 대표 이력을 선택한다.")
   void equalObservationsPreferTheLatestSubmissionBeforeId() {
     CarWashHistory older = history(10L, VisitExperience.USED, NOW.minusDays(2), NOW.minusDays(1));
     CarWashHistory newer = history(1L, VisitExperience.USED, NOW.minusDays(2), NOW);
@@ -43,6 +47,7 @@ class CarWashRepresentativePolicyTest {
   }
 
   @Test
+  @DisplayName("신뢰도와 관찰 및 제출 시점이 같으면 입력 순서와 관계없이 가장 큰 식별자의 이력을 선택한다.")
   void equalScoresAndTimesPreferTheLargestIdIndependentlyOfInputOrder() {
     CarWashHistory first = history(1L, VisitExperience.USED, NOW, NOW);
     CarWashHistory second = history(2L, VisitExperience.USED, NOW, NOW);
@@ -52,6 +57,7 @@ class CarWashRepresentativePolicyTest {
   }
 
   @Test
+  @DisplayName("시간대 표기가 달라도 같은 관찰 및 제출 시각이면 식별자로 동점을 판정한다.")
   void differentOffsetsForTheSameInstantUseIdToBreakTheTie() {
     CarWashHistory first = history(1L, VisitExperience.USED, NOW, NOW);
     CarWashHistory second = history(2L, VisitExperience.USED, NOW.withOffsetSameInstant(ZoneOffset.ofHours(-7)),
@@ -61,6 +67,7 @@ class CarWashRepresentativePolicyTest {
   }
 
   @Test
+  @DisplayName("사진 없는 같은 경험 유형의 이력을 90일이 지난 뒤 재평가하면 대표를 유지하고 최근성 점수만 낮춘다.")
   void reevaluationAfterNinetyDaysKeepsTheWinnerButReducesItsConfidence() {
     CarWashHistory recent = history(2L, VisitExperience.USED, NOW, NOW);
     CarWashHistory older = history(1L, VisitExperience.USED, NOW.minusDays(10), NOW);
@@ -72,6 +79,7 @@ class CarWashRepresentativePolicyTest {
   }
 
   @Test
+  @DisplayName("저장하지 않아 식별자가 없는 이력은 대표로 선택하지 않는다.")
   void unsavedHistoriesCannotBeSelected() {
     CarWashHistory unsaved = history(null, VisitExperience.USED, NOW, NOW);
 
@@ -79,11 +87,13 @@ class CarWashRepresentativePolicyTest {
   }
 
   @Test
+  @DisplayName("후보 이력이 없으면 대표 이력 선택을 거절한다.")
   void anEmptyCandidateListCannotBeSelected() {
     assertThatThrownBy(() -> policy.select(List.of(), NOW)).isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
+  @DisplayName("사진 근거 이력의 최근성이 만료되어 동점이 되면 최신 관찰 이력을 대표로 선택한다.")
   void anOlderPhotoBackedHistoryCanLoseItsLeadAsItsRecencyExpires() {
     CarWashHistory oldPhoto = CarWashHistory.builder().carWash(carWash).memberId(1L)
                                             .type(CarWashHistoryType.REGISTRATION).visitExperience(VisitExperience.USED)

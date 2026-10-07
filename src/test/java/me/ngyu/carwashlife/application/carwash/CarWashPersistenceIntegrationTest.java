@@ -9,6 +9,7 @@ import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryType;
 import me.ngyu.carwashlife.application.carwash.domain.FacilityAvailability;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,6 +23,7 @@ class CarWashPersistenceIntegrationTest {
   private EntityManager entityManager;
 
   @Test
+  @DisplayName("대표 이력을 바꾸어 저장하면 원장의 새 정보와 이전 이력의 원본 정보를 함께 보존한다.")
   void changingRepresentativeHistoryPersistsNewMasterInformationAndPreservesOldSnapshot() {
     OffsetDateTime submittedAt = OffsetDateTime.parse("2026-10-05T10:00:00+09:00");
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, submittedAt);

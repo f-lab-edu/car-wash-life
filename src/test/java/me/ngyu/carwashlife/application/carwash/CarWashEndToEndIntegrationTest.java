@@ -28,6 +28,7 @@ import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -99,6 +100,7 @@ class CarWashEndToEndIntegrationTest {
   }
 
   @Test
+  @DisplayName("실제 HTTP로 등록과 수정을 이어서 요청하면 최고점 이력과 기존 정보 및 사진 출처를 보존한다.")
   void realHttpAuthenticationUploadRegistrationModificationAndDetailPreserveTheWinningSnapshot() throws Exception {
     String token = signupAndLogin();
     byte[] png = image();
@@ -171,6 +173,7 @@ class CarWashEndToEndIntegrationTest {
   }
 
   @Test
+  @DisplayName("인증 없이 실제 HTTP로 업로드하거나 등록하면 데이터와 파일을 만들지 않고 거절한다.")
   void unauthenticatedRealHttpUploadsAndRegistrationsHaveNoSideEffects() throws Exception {
     assertThat(upload(null, image()).statusCode()).isEqualTo(401);
     assertThat(postJson("/car-washes", null, snapshot("세차생활", "USED", 37.5, 127.0, null, null)).statusCode()).isEqualTo(401);
@@ -179,6 +182,7 @@ class CarWashEndToEndIntegrationTest {
   }
 
   @Test
+  @DisplayName("실제 업로드 파일이 5MiB를 초과하면 데이터와 파일을 만들지 않고 JSON 413 오류를 반환한다.")
   void theProductionSingleFileLimitReturnsAJson413ThroughTheRealServletContainer() throws Exception {
     String token = signupAndLogin();
 
@@ -190,6 +194,7 @@ class CarWashEndToEndIntegrationTest {
   }
 
   @Test
+  @DisplayName("각 파일이 5MiB 이하라도 실제 업로드 요청 합계가 6MiB를 초과하면 부작용 없이 JSON 413 오류를 반환한다.")
   void theProductionTotalRequestLimitRejectsMultipleIndividuallySmallFilesWithoutSideEffects() throws Exception {
     String token = signupAndLogin();
 
