@@ -4,9 +4,11 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.time.OffsetDateTime;
+import java.util.List;
 import me.ngyu.carwashlife.application.carwash.domain.FacilityAvailability;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 
@@ -29,7 +31,8 @@ public class RegisterCarWashDto {
                         FacilityAvailability vacuumAvailability,
                         @PositiveOrZero Integer vacuumPrice,
                         @PositiveOrZero Integer washBayCount,
-                        @PositiveOrZero Integer dryingBayCount) {
+                        @PositiveOrZero Integer dryingBayCount,
+                        @Size(max = 5) List<@NotNull @Positive Long> photoIds) {
 
   }
 

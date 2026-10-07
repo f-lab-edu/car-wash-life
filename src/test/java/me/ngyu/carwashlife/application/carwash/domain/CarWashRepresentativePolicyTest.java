@@ -83,6 +83,21 @@ class CarWashRepresentativePolicyTest {
     assertThatThrownBy(() -> policy.select(List.of(), NOW)).isInstanceOf(IllegalArgumentException.class);
   }
 
+  @Test
+  void anOlderPhotoBackedHistoryCanLoseItsLeadAsItsRecencyExpires() {
+    CarWashHistory oldPhoto = CarWashHistory.builder().carWash(carWash).memberId(1L)
+                                            .type(CarWashHistoryType.REGISTRATION).visitExperience(VisitExperience.USED)
+                                            .observedAt(NOW.minusDays(90)).submittedAt(NOW)
+                                            .name("사진 근거 이력").latitude(37.5).longitude(127.0).newPhotoIds(List.of(10L)).build();
+    ReflectionTestUtils.setField(oldPhoto, "id", 1L);
+    CarWashHistory recent = history(2L, VisitExperience.USED, NOW.minusDays(1), NOW);
+
+    assertThat(policy.select(List.of(oldPhoto, recent), NOW).history()).isSameAs(oldPhoto);
+    CarWashRepresentativePolicy.Selection later = policy.select(List.of(oldPhoto, recent), NOW.plusDays(1));
+    assertThat(later.history()).isSameAs(recent);
+    assertThat(later.confidence()).isEqualTo(4);
+  }
+
   private CarWashHistory history(Long id, VisitExperience experience, OffsetDateTime observedAt, OffsetDateTime submittedAt) {
     CarWashHistory history = CarWashHistory.builder().carWash(carWash).memberId(1L)
                                            .type(CarWashHistoryType.REGISTRATION).visitExperience(experience)

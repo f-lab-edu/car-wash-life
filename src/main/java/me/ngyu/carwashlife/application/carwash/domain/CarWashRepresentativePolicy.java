@@ -16,7 +16,7 @@ public class CarWashRepresentativePolicy {
     }
     return histories.stream()
                     .map(history -> new Selection(history, confidencePolicy.evaluate(
-                            history.getVisitExperience(), history.getObservedAt(), false, evaluatedAt)))
+                            history.getVisitExperience(), history.getObservedAt(), history.hasEvidencePhotos(), evaluatedAt)))
                     .max(Comparator.comparingInt(Selection::confidence)
                                    .thenComparing(selection -> selection.history().getObservedAt().toInstant())
                                    .thenComparing(selection -> selection.history().getSubmittedAt().toInstant())

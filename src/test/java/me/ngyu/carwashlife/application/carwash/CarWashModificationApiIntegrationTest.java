@@ -16,6 +16,7 @@ import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.security.AccessTokenProvider;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
+import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +53,8 @@ class CarWashModificationApiIntegrationTest {
   @Autowired
   private CarWashHistoryRepository historyRepository;
   @Autowired
+  private CarWashPhotoRepository photoRepository;
+  @Autowired
   private MemberRepository memberRepository;
   @Autowired
   private AccessTokenProvider accessTokenProvider;
@@ -68,6 +71,7 @@ class CarWashModificationApiIntegrationTest {
 
   @BeforeEach
   void setUp() throws Exception {
+    photoRepository.deleteAllInBatch();
     jdbcTemplate.update("update car_wash set target_history_id = null");
     historyRepository.deleteAllInBatch();
     carWashRepository.deleteAllInBatch();
