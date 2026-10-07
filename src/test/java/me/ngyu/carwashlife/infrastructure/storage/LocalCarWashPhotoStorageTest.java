@@ -18,8 +18,8 @@ class LocalCarWashPhotoStorageTest {
   @TempDir
   Path root;
 
-  @DisplayName("설정한 저장 루트에서 생성한 상대 키로 파일을 저장하고 읽고 삭제한다.")
   @Test
+  @DisplayName("설정한 저장 루트에서 생성한 상대 키로 파일을 저장하고 읽고 삭제한다.")
   void generatedRelativeKeysWorkUnderAConfiguredRootAndCanBeDeleted() throws Exception {
     LocalCarWashPhotoStorage storage = new LocalCarWashPhotoStorage(root.resolve("nested/photos").toString());
     byte[] content = new byte[]{1, 2, 3};
@@ -33,8 +33,8 @@ class LocalCarWashPhotoStorageTest {
     assertThat(root.resolve("nested/photos").resolve(key)).doesNotExist();
   }
 
-  @DisplayName("UUID 형식이 아닌 경로나 키로 저장 루트 밖의 파일을 읽으려 하면 거절한다.")
   @Test
+  @DisplayName("UUID 형식이 아닌 경로나 키로 저장 루트 밖의 파일을 읽으려 하면 거절한다.")
   void nonUuidKeysCannotEscapeTheRoot() {
     LocalCarWashPhotoStorage storage = new LocalCarWashPhotoStorage(root.toString());
 
@@ -43,8 +43,8 @@ class LocalCarWashPhotoStorageTest {
     assertThatThrownBy(() -> storage.read("/etc/passwd")).isInstanceOf(IOException.class);
   }
 
-  @DisplayName("사진 파일이 심볼릭 링크이면 읽기를 거절하고 링크와 원본 파일을 보존한다.")
   @Test
+  @DisplayName("사진 파일이 심볼릭 링크이면 읽기를 거절하고 링크와 원본 파일을 보존한다.")
   void aSymbolicLinkAtTheStoredLeafCannotBeRead() throws Exception {
     Path target = Files.write(root.resolve("original"), new byte[]{1, 2, 3});
     String key = UUID.randomUUID().toString();
@@ -56,8 +56,8 @@ class LocalCarWashPhotoStorageTest {
     assertThat(Files.readAllBytes(target)).isEqualTo(new byte[]{1, 2, 3});
   }
 
-  @DisplayName("관리자가 저장 루트를 심볼릭 링크로 설정하면 실제 디렉터리에 사진을 저장한다.")
   @Test
+  @DisplayName("관리자가 저장 루트를 심볼릭 링크로 설정하면 실제 디렉터리에 사진을 저장한다.")
   void anAdministratorConfiguredRootSymbolicLinkIsResolved() throws Exception {
     Path actual = Files.createDirectory(root.resolve("actual"));
     Path alias = supportedSymbolicLink(root.resolve("alias"), actual);

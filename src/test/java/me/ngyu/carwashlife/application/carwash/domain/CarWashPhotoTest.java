@@ -14,8 +14,8 @@ class CarWashPhotoTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
 
-  @DisplayName("사진은 소유자가 새 관찰 근거로 제출한 이력에 한 번만 연결한다.")
   @Test
+  @DisplayName("사진은 소유자가 새 관찰 근거로 제출한 이력에 한 번만 연결한다.")
   void aPhotoCanBeAttachedOnceToItsOwnersEvidenceHistory() {
     CarWashPhoto photo = CarWashPhoto.create(1L, UUID.randomUUID().toString(), "image/png", 100, NOW);
     ReflectionTestUtils.setField(photo, "id", 10L);
@@ -28,8 +28,8 @@ class CarWashPhotoTest {
     assertThatThrownBy(() -> photo.attachTo(history)).isInstanceOf(IllegalArgumentException.class);
   }
 
-  @DisplayName("다른 작성자의 이력에 사진을 연결하려 하면 미첨부 상태를 유지하고 거절한다.")
   @Test
+  @DisplayName("다른 작성자의 이력에 사진을 연결하려 하면 미첨부 상태를 유지하고 거절한다.")
   void anotherOwnersHistoryCannotAttachThePhoto() {
     CarWashPhoto photo = CarWashPhoto.create(1L, UUID.randomUUID().toString(), "image/png", 100, NOW);
     ReflectionTestUtils.setField(photo, "id", 10L);
@@ -38,8 +38,8 @@ class CarWashPhotoTest {
     assertThat(photo.isPending()).isTrue();
   }
 
-  @DisplayName("상속한 사진은 전체 정보에 유지하되 새 관찰 근거로 취급하지 않고 원래 출처를 보존한다.")
   @Test
+  @DisplayName("상속한 사진은 전체 정보에 유지하되 새 관찰 근거로 취급하지 않고 원래 출처를 보존한다.")
   void inheritedPhotosStayInTheSnapshotWithoutBecomingNewEvidence() {
     CarWashHistory original = registration(1L, List.of(10L));
     CarWashHistory next = CarWashHistory.builder().carWash(original.getCarWash()).baseHistory(original).memberId(2L)
@@ -52,8 +52,8 @@ class CarWashPhotoTest {
     assertThatThrownBy(() -> next.getPhotoIds().clear()).isInstanceOf(UnsupportedOperationException.class);
   }
 
-  @DisplayName("새 사진만 추가해도 실제 정보 변경으로 기록하고 기존 사진을 보존한다.")
   @Test
+  @DisplayName("새 사진만 추가해도 실제 정보 변경으로 기록하고 기존 사진을 보존한다.")
   void newPhotosAloneAreAnInformationChangeAndPreserveOlderPhotos() {
     CarWashHistory original = registration(1L, List.of(10L));
     CarWashHistory next = CarWashHistory.builder().carWash(original.getCarWash()).baseHistory(original).memberId(2L)

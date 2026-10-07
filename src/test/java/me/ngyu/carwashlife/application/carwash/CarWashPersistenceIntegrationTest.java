@@ -22,8 +22,8 @@ class CarWashPersistenceIntegrationTest {
   @Autowired
   private EntityManager entityManager;
 
-  @DisplayName("대표 이력을 바꾸어 저장하면 원장의 새 정보와 이전 이력의 원본 정보를 함께 보존한다.")
   @Test
+  @DisplayName("대표 이력을 바꾸어 저장하면 원장의 새 정보와 이전 이력의 원본 정보를 함께 보존한다.")
   void changingRepresentativeHistoryPersistsNewMasterInformationAndPreservesOldSnapshot() {
     OffsetDateTime submittedAt = OffsetDateTime.parse("2026-10-05T10:00:00+09:00");
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, submittedAt);

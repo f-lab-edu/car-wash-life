@@ -15,8 +15,8 @@ class CarWashConfidencePolicyTest {
   private final CarWashConfidencePolicy policy = new CarWashConfidencePolicy();
   private final OffsetDateTime evaluatedAt = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
 
-  @DisplayName("실제 이용 여부와 90일 이내 관찰 여부 및 근거 사진 유무에 따라 신뢰도 점수를 계산한다.")
   @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("실제 이용 여부와 90일 이내 관찰 여부 및 근거 사진 유무에 따라 신뢰도 점수를 계산한다.")
   @CsvSource({
           "NOT_USED, 91, false, 1", "NOT_USED, 90, false, 2",
           "NOT_USED, 91, true, 2", "NOT_USED, 90, true, 3",
@@ -30,15 +30,15 @@ class CarWashConfidencePolicyTest {
     assertThat(confidence).isEqualTo(expectedConfidence);
   }
 
-  @DisplayName("관찰 시점과 평가 시점이 같으면 최근성 점수를 가산한다.")
   @Test
+  @DisplayName("관찰 시점과 평가 시점이 같으면 최근성 점수를 가산한다.")
   void anObservationAtEvaluationTimeIsRecent() {
     assertThat(policy.evaluate(VisitExperience.USED, evaluatedAt, false, evaluatedAt))
             .isEqualTo(4);
   }
 
-  @DisplayName("관찰 시점이 90일 경계를 조금이라도 벗어나면 최근성 점수를 가산하지 않는다.")
   @Test
+  @DisplayName("관찰 시점이 90일 경계를 조금이라도 벗어나면 최근성 점수를 가산하지 않는다.")
   void anObservationJustOutsideNinetyDaysLosesRecencyPoint() {
     OffsetDateTime observedAt = evaluatedAt.minusDays(90).minusNanos(1);
 
@@ -46,8 +46,8 @@ class CarWashConfidencePolicyTest {
             .isEqualTo(3);
   }
 
-  @DisplayName("시간대 표기가 달라도 같은 관찰 시각이면 동일한 신뢰도 점수를 계산한다.")
   @Test
+  @DisplayName("시간대 표기가 달라도 같은 관찰 시각이면 동일한 신뢰도 점수를 계산한다.")
   void differentOffsetsForTheSameInstantHaveTheSameScore() {
     OffsetDateTime observedAt = evaluatedAt.minusDays(90)
                                            .withOffsetSameInstant(ZoneOffset.ofHours(-7));
@@ -56,8 +56,8 @@ class CarWashConfidencePolicyTest {
             .isEqualTo(4);
   }
 
-  @DisplayName("관찰 시점이 평가 시점보다 미래이면 신뢰도 평가를 거절한다.")
   @Test
+  @DisplayName("관찰 시점이 평가 시점보다 미래이면 신뢰도 평가를 거절한다.")
   void aFutureObservationIsRejected() {
     assertThatThrownBy(() -> policy.evaluate(
             VisitExperience.USED, evaluatedAt.plusNanos(1), false, evaluatedAt))

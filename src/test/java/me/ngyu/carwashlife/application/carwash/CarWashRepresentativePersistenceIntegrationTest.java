@@ -71,8 +71,8 @@ class CarWashRepresentativePersistenceIntegrationTest {
     original = registrationService.register(memberId, registration("세차생활"));
   }
 
-  @DisplayName("원장 잠금 조회는 요청한 세차장에 비관적 쓰기 잠금을 적용하고 해당 세차장의 이력만 조회한다.")
   @Test
+  @DisplayName("원장 잠금 조회는 요청한 세차장에 비관적 쓰기 잠금을 적용하고 해당 세차장의 이력만 조회한다.")
   void explicitMasterQueryLoadsOnlyTheRequestedMasterWithAPessimisticWriteLock() {
     RegisterCarWashDto.Response other = registrationService.register(memberId, registration("다른 세차장"));
 
@@ -86,8 +86,8 @@ class CarWashRepresentativePersistenceIntegrationTest {
     });
   }
 
-  @DisplayName("독립된 트랜잭션에서 동시에 수정해도 두 이력을 보존하고 최신 관찰 이력의 정보를 원장에 반영한다.")
   @Test
+  @DisplayName("독립된 트랜잭션에서 동시에 수정해도 두 이력을 보존하고 최신 관찰 이력의 정보를 원장에 반영한다.")
   void concurrentIndependentModificationsPreserveBothHistoriesAndSelectOneConsistentWinner() throws Exception {
     CountDownLatch ready = new CountDownLatch(2);
     CountDownLatch start = new CountDownLatch(1);

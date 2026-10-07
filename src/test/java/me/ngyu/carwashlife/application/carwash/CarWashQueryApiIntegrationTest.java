@@ -88,8 +88,8 @@ class CarWashQueryApiIntegrationTest {
     originalHistoryId = historyRepository.findAll().getFirst().getId();
   }
 
-  @DisplayName("상세 조회하면 내부 회원 식별자를 노출하지 않고 대표 이력의 전체 정보와 신뢰도를 반환한다.")
   @Test
+  @DisplayName("상세 조회하면 내부 회원 식별자를 노출하지 않고 대표 이력의 전체 정보와 신뢰도를 반환한다.")
   void detailReturnsTheSelectedFullSnapshotAndConfidenceWithoutExposingMemberIds() throws Exception {
     mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer " + token))
            .andExpect(status().isOk())
@@ -122,8 +122,8 @@ class CarWashQueryApiIntegrationTest {
            .andExpect(jsonPath("$.memberId").doesNotExist());
   }
 
-  @DisplayName("신뢰도가 낮은 새 수정 이력은 저장하되 기존 대표 이력을 교체하지 않는다.")
   @Test
+  @DisplayName("신뢰도가 낮은 새 수정 이력은 저장하되 기존 대표 이력을 교체하지 않는다.")
   void lowerConfidenceNewHistoryDoesNotReplaceTheWinner() throws Exception {
     String request = modification().replace("\"USED\"", "\"NOT_USED\"").replace("세차생활", "낮은 점수 이름");
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId).header("Authorization", "Bearer " + token)
@@ -137,8 +137,8 @@ class CarWashQueryApiIntegrationTest {
     assertThat(carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId()).isEqualTo(originalHistoryId);
   }
 
-  @DisplayName("신뢰도가 같으면 최신 관찰 이력을 대표로 선택하고 원장의 이름과 좌표를 함께 갱신한다.")
   @Test
+  @DisplayName("신뢰도가 같으면 최신 관찰 이력을 대표로 선택하고 원장의 이름과 좌표를 함께 갱신한다.")
   void latestObservationWinsATieAndUpdatesNameCoordinatesAndPointerTogether() throws Exception {
     String request = modification().replace("세차생활", "새 세차생활").replace("37.5", "37.6").replace("127.0", "127.1");
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId).header("Authorization", "Bearer " + token)
@@ -162,8 +162,8 @@ class CarWashQueryApiIntegrationTest {
     assertThat(original.getLongitude()).isEqualTo(127.0);
   }
 
-  @DisplayName("나중에 제출한 수정 요청의 신뢰도가 낮으면 앞서 선택한 대표 정보를 유지한다.")
   @Test
+  @DisplayName("나중에 제출한 수정 요청의 신뢰도가 낮으면 앞서 선택한 대표 정보를 유지한다.")
   void aLaterLowerConfidenceCorrectionCannotReplaceAnEarlierWinner() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId).header("Authorization", "Bearer " + token)
                                                                  .contentType(MediaType.APPLICATION_JSON).content(modification().replace("세차생활", "최고점 이름")))
@@ -179,8 +179,8 @@ class CarWashQueryApiIntegrationTest {
            .andExpect(jsonPath("$.name").value("최고점 이름"));
   }
 
-  @DisplayName("조회 시 90일이 지나면 신뢰도를 재계산하되 대표 이력이 같으면 갱신 시각을 유지한다.")
   @Test
+  @DisplayName("조회 시 90일이 지나면 신뢰도를 재계산하되 대표 이력이 같으면 갱신 시각을 유지한다.")
   void queriesRecalculateConfidenceAfterNinetyDaysWithoutChangingAnUnchangedWinnerTimestamp() throws Exception {
     clock.setInstant(NOW.plusDays(91).toInstant());
 
@@ -191,8 +191,8 @@ class CarWashQueryApiIntegrationTest {
     assertThat(carWashRepository.findById(carWashId).orElseThrow().getUpdatedAt()).isEqualTo(NOW);
   }
 
-  @DisplayName("원장이 오래된 대표 이력을 가리키면 조회 시 최고점 이력과 해당 이름 및 좌표로 복구한다.")
   @Test
+  @DisplayName("원장이 오래된 대표 이력을 가리키면 조회 시 최고점 이력과 해당 이름 및 좌표로 복구한다.")
   void queriesRepairAnOutdatedRepresentativeAndItsMasterProjection() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId).header("Authorization", "Bearer " + token)
                                                                  .contentType(MediaType.APPLICATION_JSON).content(modification().replace("세차생활", "정확한 이름")))
@@ -211,36 +211,36 @@ class CarWashQueryApiIntegrationTest {
     assertThat(repaired.getLongitude()).isEqualTo(127.0);
   }
 
-  @DisplayName("존재하지 않는 세차장을 상세 조회하면 404 오류를 반환한다.")
   @Test
+  @DisplayName("존재하지 않는 세차장을 상세 조회하면 404 오류를 반환한다.")
   void missingCarWashReturnsNotFound() throws Exception {
     mockMvc.perform(get("/car-washes/{id}", Long.MAX_VALUE).header("Authorization", "Bearer " + token))
            .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("CAR_WASH_NOT_FOUND"));
   }
 
-  @DisplayName("인증 없이 세차장을 상세 조회하면 거절한다.")
   @Test
+  @DisplayName("인증 없이 세차장을 상세 조회하면 거절한다.")
   void missingAuthenticationIsRejected() throws Exception {
     mockMvc.perform(get("/car-washes/{id}", carWashId)).andExpect(status().isUnauthorized());
   }
 
-  @DisplayName("잘못된 토큰으로 세차장을 상세 조회하면 거절한다.")
   @Test
+  @DisplayName("잘못된 토큰으로 세차장을 상세 조회하면 거절한다.")
   void invalidTokensAreRejected() throws Exception {
     mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer invalid-token"))
            .andExpect(status().isUnauthorized());
   }
 
-  @DisplayName("삭제된 회원의 토큰으로 세차장을 상세 조회하면 거절한다.")
   @Test
+  @DisplayName("삭제된 회원의 토큰으로 세차장을 상세 조회하면 거절한다.")
   void tokensForDeletedMembersAreRejected() throws Exception {
     memberRepository.deleteById(memberId);
     mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer " + token))
            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
   }
 
-  @DisplayName("정지된 회원이 세차장을 상세 조회하면 비활성 계정 오류를 반환한다.")
   @Test
+  @DisplayName("정지된 회원이 세차장을 상세 조회하면 비활성 계정 오류를 반환한다.")
   void inactiveMembersCannotQueryOrChangeTheRepresentative() throws Exception {
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", memberId);
     mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer " + token))

@@ -144,8 +144,8 @@ class CarWashPhotoApiIntegrationTest {
     }
   }
 
-  @DisplayName("JPEG나 PNG를 업로드하면 원본 파일명 대신 생성한 저장 키로 실제 이미지 파일을 저장한다.")
   @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("JPEG나 PNG를 업로드하면 원본 파일명 대신 생성한 저장 키로 실제 이미지 파일을 저장한다.")
   @ValueSource(strings = {"png", "jpeg"})
   void uploadsDecodeImagesAndStoreOnlyGeneratedKeys(String format) throws Exception {
     byte[] bytes = image(format);
@@ -163,8 +163,8 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(Files.readAllBytes(ROOT.resolve(photo.getStorageKey()))).isEqualTo(bytes);
   }
 
-  @DisplayName("미첨부 사진은 소유자에게만 공개하고 이력에 첨부한 사진은 다른 활성 회원에게도 공개한다.")
   @Test
+  @DisplayName("미첨부 사진은 소유자에게만 공개하고 이력에 첨부한 사진은 다른 활성 회원에게도 공개한다.")
   void pendingPhotosArePrivateAndAttachedPhotosCanBeReadByOtherActiveMembers() throws Exception {
     Long photoId = upload();
     byte[] bytes = image("png");
@@ -185,8 +185,8 @@ class CarWashPhotoApiIntegrationTest {
            .andExpect(jsonPath("$.photos[0].storageKey").doesNotExist());
   }
 
-  @DisplayName("새 사진만 추가하는 수정 요청도 저장하고 신뢰도 5점 이력을 대표로 반영한다.")
   @Test
+  @DisplayName("새 사진만 추가하는 수정 요청도 저장하고 신뢰도 5점 이력을 대표로 반영한다.")
   void photosOnlyModificationIsAcceptedAndCanChangeTheRepresentativeToFivePoints() throws Exception {
     Long carWashId = register(List.of(), 4);
     Long baseHistoryId = carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId();
@@ -204,8 +204,8 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(historyRepository.findById(baseHistoryId).orElseThrow().getPhotoIds()).isEmpty();
   }
 
-  @DisplayName("상속한 사진은 수정 이력에 보존하되 새 사진 근거 점수를 가산하지 않는다.")
   @Test
+  @DisplayName("상속한 사진은 수정 이력에 보존하되 새 사진 근거 점수를 가산하지 않는다.")
   void inheritedPhotosRemainVisibleButDoNotGrantTheNewHistoryAPhotoPoint() throws Exception {
     Long photoId = upload();
     Long carWashId = register(List.of(photoId), 5);
@@ -222,8 +222,8 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId()).isEqualTo(baseHistoryId);
   }
 
-  @DisplayName("수정 요청에 새 사진을 첨부하면 기존 사진과 각각의 원래 출처를 함께 보존한다.")
   @Test
+  @DisplayName("수정 요청에 새 사진을 첨부하면 기존 사진과 각각의 원래 출처를 함께 보존한다.")
   void modificationAddsNewPhotosWithoutLosingExistingPhotosOrTheirOriginalSources() throws Exception {
     Long oldPhotoId = upload();
     Long carWashId = register(List.of(oldPhotoId), 5);
@@ -240,8 +240,8 @@ class CarWashPhotoApiIntegrationTest {
            .andExpect(jsonPath("$.photos[1].sourceHistoryId").value(historyId));
   }
 
-  @DisplayName("등록 요청이 실패하면 선업로드한 사진을 미첨부 상태로 보존하고 재시도에서 사용한다.")
   @Test
+  @DisplayName("등록 요청이 실패하면 선업로드한 사진을 미첨부 상태로 보존하고 재시도에서 사용한다.")
   void failedSubmissionKeepsThePreuploadedPhotoPendingAndAllowsRetry() throws Exception {
     Long photoId = upload();
     String bad = withPhotos(SNAPSHOT, List.of(photoId)).replace("\"name\":", "\"airGunAvailability\":\"UNAVAILABLE\",\"airGunPrice\":0,\"name\":");
@@ -257,8 +257,8 @@ class CarWashPhotoApiIntegrationTest {
     register(List.of(photoId), 5);
   }
 
-  @DisplayName("중복되거나 존재하지 않거나 다른 회원 소유이거나 이미 첨부한 사진을 제출하면 등록을 거절한다.")
   @Test
+  @DisplayName("중복되거나 존재하지 않거나 다른 회원 소유이거나 이미 첨부한 사진을 제출하면 등록을 거절한다.")
   void duplicateMissingForeignAndAlreadyUsedPhotosCannotBeSubmitted() throws Exception {
     Long photoId = upload();
     for (List<Long> ids : List.of(List.of(photoId, photoId), List.of(Long.MAX_VALUE))) {
@@ -275,8 +275,8 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(historyRepository.count()).isEqualTo(1);
   }
 
-  @DisplayName("한 요청에는 신규 사진을 최대 5개 첨부하고 초과한 요청은 거절한다.")
   @Test
+  @DisplayName("한 요청에는 신규 사진을 최대 5개 첨부하고 초과한 요청은 거절한다.")
   void atMostFiveNewPhotosCanBeAttachedToOneRequest() throws Exception {
     List<Long> ids = new ArrayList<>();
     for (int count = 0; count < 6; count++) {
@@ -289,8 +289,8 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(photoRepository.findById(ids.get(5)).orElseThrow().isPending()).isTrue();
   }
 
-  @DisplayName("비어 있거나 이미지가 아니거나 손상되거나 선언한 형식과 다른 파일은 저장하지 않고 거절한다.")
   @Test
+  @DisplayName("비어 있거나 이미지가 아니거나 손상되거나 선언한 형식과 다른 파일은 저장하지 않고 거절한다.")
   void emptyNonImageCorruptAndMismatchedMimeUploadsAreRejectedWithoutFiles() throws Exception {
     List<MockMultipartFile> invalid = List.of(
             new MockMultipartFile("file", "empty.png", "image/png", new byte[0]),
@@ -307,8 +307,8 @@ class CarWashPhotoApiIntegrationTest {
     }
   }
 
-  @DisplayName("사진이 5MiB를 초과하면 사진 정보를 저장하지 않고 413 오류를 반환한다.")
   @Test
+  @DisplayName("사진이 5MiB를 초과하면 사진 정보를 저장하지 않고 413 오류를 반환한다.")
   void oversizedUploadsReturnPayloadTooLarge() throws Exception {
     mockMvc.perform(multipart("/car-wash-photos").file(new MockMultipartFile("file", "large.png", "image/png", new byte[5 * 1024 * 1024 + 1]))
                                                  .header("Authorization", "Bearer " + token))
@@ -316,8 +316,8 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(photoRepository.count()).isZero();
   }
 
-  @DisplayName("사진의 변 길이나 전체 픽셀 수가 제한을 초과하면 사진을 저장하지 않고 거절한다.")
   @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("사진의 변 길이나 전체 픽셀 수가 제한을 초과하면 사진을 저장하지 않고 거절한다.")
   @CsvSource({"6000, 6000", "10001, 1"})
   void excessivePixelDimensionsAreRejectedBeforeImageDecodingAllocatesTheImage(int width, int height) throws Exception {
     byte[] png = image("png");
@@ -331,8 +331,8 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(photoRepository.count()).isZero();
   }
 
-  @DisplayName("인증하지 않았거나 활성 회원이 아니면 사진 업로드와 조회를 거절한다.")
   @Test
+  @DisplayName("인증하지 않았거나 활성 회원이 아니면 사진 업로드와 조회를 거절한다.")
   void authenticationAndActiveAccountsAreRequiredForUploadsAndReads() throws Exception {
     MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", image("png"));
     mockMvc.perform(multipart("/car-wash-photos").file(file)).andExpect(status().isUnauthorized());
@@ -345,15 +345,15 @@ class CarWashPhotoApiIntegrationTest {
     mockMvc.perform(multipart("/car-wash-photos").file(file).header("Authorization", "Bearer " + token)).andExpect(status().isUnauthorized());
   }
 
-  @DisplayName("사진이 없으면 조회에 404 오류를 반환하고 업로드 파일이 없으면 400 오류를 반환한다.")
   @Test
+  @DisplayName("사진이 없으면 조회에 404 오류를 반환하고 업로드 파일이 없으면 400 오류를 반환한다.")
   void missingPhotoAndMissingUploadPartAreReported() throws Exception {
     mockMvc.perform(get("/car-wash-photos/{id}", Long.MAX_VALUE).header("Authorization", "Bearer " + token)).andExpect(status().isNotFound());
     mockMvc.perform(multipart("/car-wash-photos").header("Authorization", "Bearer " + token)).andExpect(status().isBadRequest());
   }
 
-  @DisplayName("업로드를 포함한 트랜잭션을 롤백하면 사진 정보와 실제 파일을 삭제한다.")
   @Test
+  @DisplayName("업로드를 포함한 트랜잭션을 롤백하면 사진 정보와 실제 파일을 삭제한다.")
   void outerTransactionRollbackRemovesUploadedMetadataAndItsActualFile() throws Exception {
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
       photoService.upload(memberId, new MockMultipartFile("file", "photo.png", "image/png", imageUnchecked()));
@@ -367,8 +367,8 @@ class CarWashPhotoApiIntegrationTest {
     }
   }
 
-  @DisplayName("업로드 트랜잭션의 커밋 과정이 실패하면 사진 정보와 실제 파일을 삭제한다.")
   @Test
+  @DisplayName("업로드 트랜잭션의 커밋 과정이 실패하면 사진 정보와 실제 파일을 삭제한다.")
   void failureWhileCommittingAnUploadAlsoRemovesTheFile() throws Exception {
     assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
       photoService.upload(memberId, new MockMultipartFile("file", "photo.png", "image/png", imageUnchecked()));
@@ -386,8 +386,8 @@ class CarWashPhotoApiIntegrationTest {
     }
   }
 
-  @DisplayName("사진 잠금 조회는 해당 사진에 비관적 쓰기 잠금을 적용하고 없는 사진은 반환하지 않는다.")
   @Test
+  @DisplayName("사진 잠금 조회는 해당 사진에 비관적 쓰기 잠금을 적용하고 없는 사진은 반환하지 않는다.")
   void photoLockQueryRequestsAPessimisticWriteLock() throws Exception {
     Long photoId = upload();
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
@@ -398,8 +398,8 @@ class CarWashPhotoApiIntegrationTest {
     });
   }
 
-  @DisplayName("사진 근거 이력의 최근성 점수가 만료되면 최신 관찰 이력으로 대표 정보를 교체한다.")
   @Test
+  @DisplayName("사진 근거 이력의 최근성 점수가 만료되면 최신 관찰 이력으로 대표 정보를 교체한다.")
   void recencyExpirationCanReplaceAnOlderPhotoBackedRepresentative() throws Exception {
     Long photoId = upload();
     mockMvc.perform(post("/car-washes").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
@@ -427,8 +427,8 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(historyRepository.findById(baseHistoryId).orElseThrow().getEvidencePhotoIds()).containsExactly(photoId);
   }
 
-  @DisplayName("기존 이력의 사진 컬럼이 null이면 사진 없는 정보로 조회한다.")
   @Test
+  @DisplayName("기존 이력의 사진 컬럼이 null이면 사진 없는 정보로 조회한다.")
   void legacyNullPhotoColumnsAreReturnedAsAnEmptyPhotoSnapshot() throws Exception {
     Long carWashId = register(List.of(), 4);
     Long historyId = carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId();
@@ -438,8 +438,8 @@ class CarWashPhotoApiIntegrationTest {
            .andExpect(status().isOk()).andExpect(jsonPath("$.confidence").value(4)).andExpect(jsonPath("$.photos").isEmpty());
   }
 
-  @DisplayName("동시에 등록 요청을 제출해도 하나의 미첨부 사진은 한 이력에만 연결한다.")
   @Test
+  @DisplayName("동시에 등록 요청을 제출해도 하나의 미첨부 사진은 한 이력에만 연결한다.")
   void concurrentRequestsCanConsumeOnePendingPhotoOnlyOnce() throws Exception {
     Long photoId = upload();
     CountDownLatch ready = new CountDownLatch(2);

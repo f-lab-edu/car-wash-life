@@ -6,6 +6,8 @@
 
 모든 세차장·사진 API에는 활성 회원의 AccessToken이 필요하다.
 
+`POST /auth/signup`에 이메일과 비밀번호를 보내 가입하고, `POST /auth/login`에서 받은 `accessToken`을 `Authorization: Bearer <ACCESS_TOKEN>` 헤더로 전달한다.
+
 | 요청 | 동작 |
 | --- | --- |
 | `POST /car-washes` | 원장과 최초 등록 이력 생성 |
@@ -19,6 +21,41 @@
 수정 요청은 `baseHistoryId`와 전체 정보 스냅샷을 제출한다. 주소·가격·베이 수의 생략 또는 `null`은 미확인으로 변경하며, 시설 여부의 생략 또는 `null`은 `UNKNOWN`으로 저장한다. 가격 0은 무료이고 `null`과 다르다. 에어건·청소기가 `UNAVAILABLE`이면 가격을 입력할 수 없다.
 
 서버는 기준 이력과 비교해 실제 변경 항목을 기록한다. 변경하지 않은 필드의 관찰 근거는 기준 이력에 연결된 원래 이력에서 찾는다. 같은 세차장의 과거 이력을 기준으로 수정할 수 있으며, 정보나 신규 사진이 바뀌지 않은 요청은 거절한다.
+
+등록 요청 예시(관찰 시각과 사진 ID는 실제 값으로 입력):
+
+```json
+{
+  "name": "세차생활 셀프세차장",
+  "address": "서울시 예시 주소",
+  "latitude": 37.5,
+  "longitude": 127.0,
+  "visitExperience": "USED",
+  "observedAt": "2026-10-06T12:00:00+09:00",
+  "highPressureWaterPrice": 3000,
+  "foamLanceAvailability": "AVAILABLE",
+  "foamGunPrice": 1000,
+  "airGunAvailability": "AVAILABLE",
+  "airGunPrice": 0,
+  "vacuumAvailability": "AVAILABLE",
+  "vacuumPrice": 1000,
+  "washBayCount": 8,
+  "dryingBayCount": 12,
+  "photoIds": []
+}
+```
+
+수정은 위와 같은 전체 필드에 `baseHistoryId`를 추가하고 변경된 값을 입력한다. 상세 조회의 `historyId`를 기준 이력 ID로 사용할 수 있다. 응답의 `historyId`는 제출한 이력의 ID이며, 해당 이력이 항상 대표로 선택되는 것은 아니다. 현재 대표는 상세 조회로 확인한다.
+
+사진을 먼저 올리려면 로그인 응답의 `accessToken`을 사용한다.
+
+```sh
+curl -X POST http://localhost:8080/car-wash-photos \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -F "file=@/path/to/photo.png;type=image/png"
+```
+
+업로드 응답의 `photoId`를 등록·수정 요청의 `photoIds`에 넣는다. 이미 기준 이력에 있는 사진 ID는 다시 넣지 않는다.
 
 ## 대표 정보와 신뢰도
 
@@ -45,6 +82,8 @@
 
 신규 사진은 요청당 최대 5개이며 JPEG·PNG, 파일당 최대 5 MiB를 허용한다. 가로·세로는 각각 10,000픽셀 이하, 전체 픽셀 수는 2,500만 이하로 제한한다. 확장자나 MIME 선언만 신뢰하지 않고 이미지 형식·크기·디코딩 결과를 검사한다. 첨부할 사진은 본인이 업로드한 미사용 사진이어야 하며 한 번만 연결할 수 있다. 연결 전 사진은 업로더만, 연결된 세차장 사진은 활성 회원 누구나 조회할 수 있다.
 
+사진 업로드 HTTP 요청 전체는 multipart 정보까지 포함해 6 MiB로 제한한다. 파일 또는 요청의 용량 제한을 넘으면 413 `PHOTO_TOO_LARGE`를 반환한다.
+
 사진 메타데이터는 `car_wash_photo`에 저장한다. DB에는 서버가 만든 상대 파일 키와 최초 첨부 이력을 남기며, API에 서버 절대 경로나 원본 파일명을 노출하지 않는다.
 
 기본 저장 루트는 실행 디렉터리 기준 `./data/car-wash/photos`다. 환경변수 `CAR_WASH_PHOTO_ROOT`로 배포 환경에 맞는 경로를 지정한다.
@@ -62,3 +101,7 @@ $env:CAR_WASH_PHOTO_ROOT = 'C:\car-wash-life\photos'
 애플리케이션은 Java `Path`로 루트와 생성한 파일 키를 결합한다. OS마다 동일한 절대 경로를 요구하지 않으며 DB의 상대 키는 OS에 의존하지 않는다. 실행 계정이 쓰기 가능한 지속 저장 디렉터리를 지정하고, 컨테이너에서는 해당 디렉터리를 볼륨에 연결한다. 여러 서버가 파일을 제공한다면 같은 사진 저장소를 공유해야 한다.
 
 업로드 트랜잭션이 실패하면 생성한 파일을 정리한다. 이미 업로드한 사진을 포함한 등록·수정이 실패하면 사진은 미사용 상태로 남아 다시 제출할 수 있다. 미사용 업로드의 자동 정리, 프로세스 강제 종료 시 파일과 DB의 복구, 사진 삭제 API는 이번 구현에 포함하지 않는다.
+
+## 검증
+
+Java 21 환경에서 `./gradlew clean test bootJar`로 테스트와 실행용 패키징을 확인한다. 테스트는 H2와 임시 사진 디렉터리를 사용하며 운영 데이터베이스나 외부 서비스에 연결하지 않는다.

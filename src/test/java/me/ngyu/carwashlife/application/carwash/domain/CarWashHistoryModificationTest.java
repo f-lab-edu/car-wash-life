@@ -15,8 +15,8 @@ class CarWashHistoryModificationTest {
   private static final OffsetDateTime SUBMITTED_AT = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private final CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, SUBMITTED_AT);
 
-  @DisplayName("최초 등록 이력은 전체 정보 항목의 원래 출처가 된다.")
   @Test
+  @DisplayName("최초 등록 이력은 전체 정보 항목의 원래 출처가 된다.")
   void registrationIsTheOriginalSourceOfAllSnapshotFields() {
     CarWashHistory registration = registration();
 
@@ -25,8 +25,8 @@ class CarWashHistoryModificationTest {
     assertThat(registration.getSourceHistory(CarWashHistoryField.NAME)).isSameAs(registration);
   }
 
-  @DisplayName("정보 항목을 수정하면 실제 변경 항목만 기록하고 나머지 정보의 기존 출처를 유지한다.")
   @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("정보 항목을 수정하면 실제 변경 항목만 기록하고 나머지 정보의 기존 출처를 유지한다.")
   @EnumSource(CarWashHistoryField.class)
   void eachSnapshotFieldIsComparedToTheBaseAndKeepsItsOwnSource(CarWashHistoryField field) {
     CarWashHistory base = registration();
@@ -63,8 +63,8 @@ class CarWashHistoryModificationTest {
     assertThat(base.getVisitExperience()).isEqualTo(VisitExperience.NOT_USED);
   }
 
-  @DisplayName("수정을 반복해도 변경하지 않은 정보는 원래 이력의 관찰 시점을 유지한다.")
   @Test
+  @DisplayName("수정을 반복해도 변경하지 않은 정보는 원래 이력의 관찰 시점을 유지한다.")
   void unchangedFieldsKeepTheOriginalObservationAcrossMultipleModifications() {
     CarWashHistory base = registration();
     CarWashHistory first = modification(base).highPressureWaterPrice(3500).build();
@@ -77,8 +77,8 @@ class CarWashHistoryModificationTest {
     assertThat(second.getSourceHistory(CarWashHistoryField.LATITUDE).getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
   }
 
-  @DisplayName("주소와 가격을 null로 바꾸면 정보 삭제를 실제 변경으로 기록한다.")
   @Test
+  @DisplayName("주소와 가격을 null로 바꾸면 정보 삭제를 실제 변경으로 기록한다.")
   void explicitlyClearingNullableInformationIsAChange() {
     CarWashHistory base = registration();
     CarWashHistory next = modification(base).address(null).highPressureWaterPrice(null).build();
@@ -89,22 +89,22 @@ class CarWashHistoryModificationTest {
     assertThat(next.getSourceHistory(CarWashHistoryField.ADDRESS)).isSameAs(next);
   }
 
-  @DisplayName("세차장 정보 변경 없이 제보 메타데이터만 바꾸면 수정 이력 생성을 거절한다.")
   @Test
+  @DisplayName("세차장 정보 변경 없이 제보 메타데이터만 바꾸면 수정 이력 생성을 거절한다.")
   void metadataAloneCannotCreateAModification() {
     assertThatThrownBy(() -> modification(registration()).build()).isInstanceOf(IllegalArgumentException.class);
   }
 
-  @DisplayName("외부에서 수정 이력의 변경 항목 목록을 변경하지 못하게 한다.")
   @Test
+  @DisplayName("외부에서 수정 이력의 변경 항목 목록을 변경하지 못하게 한다.")
   void changedFieldsCannotBeModifiedByTheCaller() {
     CarWashHistory next = modification(registration()).name("새 이름").build();
 
     assertThatThrownBy(() -> next.getChangedFields().clear()).isInstanceOf(UnsupportedOperationException.class);
   }
 
-  @DisplayName("최초 등록에 기준 이력을 지정하면 이력 생성을 거절한다.")
   @Test
+  @DisplayName("최초 등록에 기준 이력을 지정하면 이력 생성을 거절한다.")
   void registrationCannotReferenceABaseHistory() {
     CarWashHistory base = registration();
 
@@ -112,15 +112,15 @@ class CarWashHistoryModificationTest {
             .isInstanceOf(IllegalArgumentException.class);
   }
 
-  @DisplayName("수정 요청에 기준 이력이 없으면 이력 생성을 거절한다.")
   @Test
+  @DisplayName("수정 요청에 기준 이력이 없으면 이력 생성을 거절한다.")
   void modificationRequiresABaseHistory() {
     assertThatThrownBy(() -> modification(registration()).baseHistory(null).name("새 이름").build())
             .isInstanceOf(IllegalArgumentException.class);
   }
 
-  @DisplayName("수정 요청의 기준 이력이 다른 세차장에 속하면 이력 생성을 거절한다.")
   @Test
+  @DisplayName("수정 요청의 기준 이력이 다른 세차장에 속하면 이력 생성을 거절한다.")
   void modificationCannotReferenceAnotherCarWash() {
     CarWash other = CarWash.create("다른 세차장", 37.5, 127.0, SUBMITTED_AT);
 
