@@ -45,14 +45,12 @@ public class Member {
   protected Member() {
   }
 
-  private Member(
-      String email,
-      String password,
-      String residenceRegionCode,
-      VehicleType vehicleType,
-      WashExperience washExperience,
-      OffsetDateTime createdAt
-  ) {
+  private Member(String email,
+                 String password,
+                 String residenceRegionCode,
+                 VehicleType vehicleType,
+                 WashExperience washExperience,
+                 OffsetDateTime createdAt) {
     this.email = email;
     this.password = password;
     this.residenceRegionCode = residenceRegionCode;
@@ -63,21 +61,19 @@ public class Member {
     this.createdAt = createdAt;
   }
 
-  public static Member create(
-      String email,
-      String encodedPassword,
-      String residenceRegionCode,
-      VehicleType vehicleType,
-      WashExperience washExperience,
-      OffsetDateTime createdAt
-  ) {
+  public static Member create(String email,
+                              String encodedPassword,
+                              String residenceRegionCode,
+                              VehicleType vehicleType,
+                              WashExperience washExperience,
+                              OffsetDateTime createdAt) {
     return new Member(
-        email,
-        encodedPassword,
-        residenceRegionCode,
-        vehicleType,
-        washExperience,
-        createdAt
+            email,
+            encodedPassword,
+            residenceRegionCode,
+            vehicleType,
+            washExperience,
+            createdAt
     );
   }
 

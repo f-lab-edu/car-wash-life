@@ -57,12 +57,10 @@ public class CarWash {
     this.operatorManaged = false;
   }
 
-  public static CarWash create(
-      String name,
-      double latitude,
-      double longitude,
-      OffsetDateTime createdAt
-  ) {
+  public static CarWash create(String name,
+                               double latitude,
+                               double longitude,
+                               OffsetDateTime createdAt) {
     return new CarWash(name, latitude, longitude, createdAt);
   }
 
@@ -76,8 +74,8 @@ public class CarWash {
       throw new IllegalArgumentException("대표 정보 반영 시점은 최초 등록 시점보다 빠를 수 없습니다.");
     }
     if (targetHistory == history
-        || (targetHistory != null && targetHistory.getId() != null
-        && targetHistory.getId().equals(history.getId()))) {
+            || (targetHistory != null && targetHistory.getId() != null
+            && targetHistory.getId().equals(history.getId()))) {
       return;
     }
 

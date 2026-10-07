@@ -30,16 +30,16 @@ class CarWashHistoryTest {
   @Test
   void facilityPricesAndBayCountsAreStoredAsReported() {
     CarWashHistory history = registration()
-        .highPressureWaterPrice(3000)
-        .foamLanceAvailability(FacilityAvailability.AVAILABLE)
-        .foamGunPrice(2000)
-        .airGunAvailability(FacilityAvailability.AVAILABLE)
-        .airGunPrice(0)
-        .vacuumAvailability(FacilityAvailability.AVAILABLE)
-        .vacuumPrice(1000)
-        .washBayCount(6)
-        .dryingBayCount(10)
-        .build();
+            .highPressureWaterPrice(3000)
+            .foamLanceAvailability(FacilityAvailability.AVAILABLE)
+            .foamGunPrice(2000)
+            .airGunAvailability(FacilityAvailability.AVAILABLE)
+            .airGunPrice(0)
+            .vacuumAvailability(FacilityAvailability.AVAILABLE)
+            .vacuumPrice(1000)
+            .washBayCount(6)
+            .dryingBayCount(10)
+            .build();
 
     assertThat(history.getHighPressureWaterPrice()).isEqualTo(3000);
     assertThat(history.getFoamLanceAvailability()).isEqualTo(FacilityAvailability.AVAILABLE);
@@ -66,22 +66,22 @@ class CarWashHistoryTest {
   @Test
   void visitExperienceIsRequired() {
     assertThatThrownBy(() -> registration().visitExperience(null).build())
-        .isInstanceOf(NullPointerException.class);
+            .isInstanceOf(NullPointerException.class);
   }
 
   @Test
   void observationAfterSubmissionIsRejected() {
     assertThatThrownBy(() -> registration()
-        .observedAt(SUBMITTED_AT.plusSeconds(1))
-        .build())
-        .isInstanceOf(IllegalArgumentException.class);
+            .observedAt(SUBMITTED_AT.plusSeconds(1))
+            .build())
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @ParameterizedTest
   @ValueSource(longs = {0, -1})
   void invalidAuthorIsRejected(long memberId) {
     assertThatThrownBy(() -> registration().memberId(memberId).build())
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @ParameterizedTest
@@ -101,13 +101,13 @@ class CarWashHistoryTest {
   @Test
   void negativeWashBayCountIsRejected() {
     assertThatThrownBy(() -> registration().washBayCount(-1).build())
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   void negativeDryingBayCountIsRejected() {
     assertThatThrownBy(() -> registration().dryingBayCount(-1).build())
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -121,27 +121,27 @@ class CarWashHistoryTest {
   @Test
   void unavailableAirGunCannotHaveAPrice() {
     assertThatThrownBy(() -> registration()
-        .airGunAvailability(FacilityAvailability.UNAVAILABLE)
-        .airGunPrice(0)
-        .build())
-        .isInstanceOf(IllegalArgumentException.class);
+            .airGunAvailability(FacilityAvailability.UNAVAILABLE)
+            .airGunPrice(0)
+            .build())
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   void unavailableVacuumCannotHaveAPrice() {
     assertThatThrownBy(() -> registration()
-        .vacuumAvailability(FacilityAvailability.UNAVAILABLE)
-        .vacuumPrice(1000)
-        .build())
-        .isInstanceOf(IllegalArgumentException.class);
+            .vacuumAvailability(FacilityAvailability.UNAVAILABLE)
+            .vacuumPrice(1000)
+            .build())
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   void unavailableFacilityCanBeRecordedWithoutAPrice() {
     CarWashHistory history = registration()
-        .airGunAvailability(FacilityAvailability.UNAVAILABLE)
-        .vacuumAvailability(FacilityAvailability.UNAVAILABLE)
-        .build();
+            .airGunAvailability(FacilityAvailability.UNAVAILABLE)
+            .vacuumAvailability(FacilityAvailability.UNAVAILABLE)
+            .build();
 
     assertThat(history.getAirGunAvailability()).isEqualTo(FacilityAvailability.UNAVAILABLE);
     assertThat(history.getAirGunPrice()).isNull();
@@ -152,35 +152,35 @@ class CarWashHistoryTest {
   @Test
   void missingLatitudeIsRejected() {
     assertThatThrownBy(() -> registration().latitude(null).build())
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @ParameterizedTest
   @ValueSource(doubles = {-90.1, 90.1, Double.NaN, Double.POSITIVE_INFINITY})
   void invalidLatitudeIsRejected(double latitude) {
     assertThatThrownBy(() -> registration().latitude(latitude).build())
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   @ParameterizedTest
   @ValueSource(doubles = {-180.1, 180.1, Double.NaN, Double.NEGATIVE_INFINITY})
   void invalidLongitudeIsRejected(double longitude) {
     assertThatThrownBy(() -> registration().longitude(longitude).build())
-        .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
   }
 
   private CarWashHistory.CarWashHistoryBuilder registration() {
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, SUBMITTED_AT);
     return CarWashHistory.builder()
-        .carWash(carWash)
-        .memberId(1L)
-        .type(CarWashHistoryType.REGISTRATION)
-        .visitExperience(VisitExperience.NOT_USED)
-        .observedAt(SUBMITTED_AT)
-        .submittedAt(SUBMITTED_AT)
-        .name("세차생활")
-        .address("서울시")
-        .latitude(37.5)
-        .longitude(127.0);
+                         .carWash(carWash)
+                         .memberId(1L)
+                         .type(CarWashHistoryType.REGISTRATION)
+                         .visitExperience(VisitExperience.NOT_USED)
+                         .observedAt(SUBMITTED_AT)
+                         .submittedAt(SUBMITTED_AT)
+                         .name("세차생활")
+                         .address("서울시")
+                         .latitude(37.5)
+                         .longitude(127.0);
   }
 }

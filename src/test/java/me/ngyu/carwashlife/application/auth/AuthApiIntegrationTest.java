@@ -37,14 +37,14 @@ import org.springframework.web.bind.annotation.RestController;
 class AuthApiIntegrationTest {
 
   private static final String SIGNUP_REQUEST = """
-      {
-        "email": "User@Example.com",
-        "password": "WashLife!123",
-        "residenceRegionCode": "11680",
-        "vehicleType": "SUV",
-        "washExperience": "OCCASIONAL"
-      }
-      """;
+          {
+            "email": "User@Example.com",
+            "password": "WashLife!123",
+            "residenceRegionCode": "11680",
+            "vehicleType": "SUV",
+            "washExperience": "OCCASIONAL"
+          }
+          """;
 
   @Autowired
   private MockMvc mockMvc;
@@ -66,12 +66,12 @@ class AuthApiIntegrationTest {
   @Test
   void signupStoresRequiredAndOptionalMemberInformation() throws Exception {
     mockMvc.perform(post("/auth/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(SIGNUP_REQUEST))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.memberId").isNumber())
-        .andExpect(jsonPath("$.email").value("user@example.com"))
-        .andExpect(jsonPath("$.createdAt", endsWith("+09:00")));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(SIGNUP_REQUEST))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.memberId").isNumber())
+           .andExpect(jsonPath("$.email").value("user@example.com"))
+           .andExpect(jsonPath("$.createdAt", endsWith("+09:00")));
 
     Member member = memberRepository.findByEmail("user@example.com").orElseThrow();
     assertThat(passwordEncoder.matches("WashLife!123", member.getPassword())).isTrue();
@@ -87,19 +87,19 @@ class AuthApiIntegrationTest {
     signup();
 
     mockMvc.perform(post("/auth/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(SIGNUP_REQUEST))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("DUPLICATE_EMAIL"));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(SIGNUP_REQUEST))
+           .andExpect(status().isConflict())
+           .andExpect(jsonPath("$.code").value("DUPLICATE_EMAIL"));
   }
 
   @Test
   void signupRejectsInvalidRequest() throws Exception {
     mockMvc.perform(post("/auth/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("{\"email\":\"not-an-email\",\"password\":\"\"}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"not-an-email\",\"password\":\"\"}"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
   }
 
   @Test
@@ -108,32 +108,32 @@ class AuthApiIntegrationTest {
     long issuedAfter = Instant.now().getEpochSecond();
 
     MvcResult result = mockMvc.perform(post("/auth/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(loginJson("WashLife!123")))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.accessToken").isString())
-        .andExpect(jsonPath("$.tokenType").value("Bearer"))
-        .andExpect(jsonPath("$.expiresIn").value(86400))
-        .andExpect(jsonPath("$.memberId").value(member.getId()))
-        .andReturn();
+                                               .contentType(MediaType.APPLICATION_JSON)
+                                               .content(loginJson("WashLife!123")))
+                              .andExpect(status().isOk())
+                              .andExpect(jsonPath("$.accessToken").isString())
+                              .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                              .andExpect(jsonPath("$.expiresIn").value(86400))
+                              .andExpect(jsonPath("$.memberId").value(member.getId()))
+                              .andReturn();
 
     String response = result.getResponse().getContentAsString();
     String token = response.substring(
-        response.indexOf("\"accessToken\":\"") + 15,
-        response.indexOf("\",\"tokenType\"")
+            response.indexOf("\"accessToken\":\"") + 15,
+            response.indexOf("\",\"tokenType\"")
     );
     String[] tokenParts = token.split("\\.");
     String payload = new String(
-        Base64.getUrlDecoder().decode(tokenParts[1]),
-        StandardCharsets.UTF_8
+            Base64.getUrlDecoder().decode(tokenParts[1]),
+            StandardCharsets.UTF_8
     );
     assertThat(payload).matches("\\{\"userId\":" + member.getId() + ",\"exp\":\\d+}");
     long expiresAt = Long.parseLong(
-        payload.substring(payload.indexOf("\"exp\":") + 6, payload.length() - 1)
+            payload.substring(payload.indexOf("\"exp\":") + 6, payload.length() - 1)
     );
     assertThat(expiresAt).isBetween(
-        issuedAfter + 86_400,
-        Instant.now().getEpochSecond() + 86_400
+            issuedAfter + 86_400,
+            Instant.now().getEpochSecond() + 86_400
     );
   }
 
@@ -142,10 +142,10 @@ class AuthApiIntegrationTest {
     signup();
 
     mockMvc.perform(post("/auth/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(loginJson("wrong-password")))
-        .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(loginJson("wrong-password")))
+           .andExpect(status().isUnauthorized())
+           .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
   }
 
   @Test
@@ -154,46 +154,46 @@ class AuthApiIntegrationTest {
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", member.getId());
 
     mockMvc.perform(post("/auth/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(loginJson("WashLife!123")))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(loginJson("WashLife!123")))
+           .andExpect(status().isForbidden())
+           .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
   }
 
   @Test
   void bearerTokenProvidesMemberIdToAuthenticatedRequests() throws Exception {
     signup();
     MvcResult loginResult = mockMvc.perform(post("/auth/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(loginJson("WashLife!123")))
-        .andReturn();
+                                                    .contentType(MediaType.APPLICATION_JSON)
+                                                    .content(loginJson("WashLife!123")))
+                                   .andReturn();
     String response = loginResult.getResponse().getContentAsString();
     String token = response.substring(
-        response.indexOf("\"accessToken\":\"") + 15,
-        response.indexOf("\",\"tokenType\"")
+            response.indexOf("\"accessToken\":\"") + 15,
+            response.indexOf("\",\"tokenType\"")
     );
 
     mockMvc.perform(get("/test/members/me")
-            .header("Authorization", "Bearer " + token))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.memberId", greaterThan(0)));
+                            .header("Authorization", "Bearer " + token))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.memberId", greaterThan(0)));
   }
 
   private Member signup() throws Exception {
     mockMvc.perform(post("/auth/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(SIGNUP_REQUEST))
-        .andExpect(status().isCreated());
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(SIGNUP_REQUEST))
+           .andExpect(status().isCreated());
     return memberRepository.findByEmail("user@example.com").orElseThrow();
   }
 
   private String loginJson(String password) {
     return """
-        {
-          "email": "user@example.com",
-          "password": "%s"
-        }
-        """.formatted(password);
+            {
+              "email": "user@example.com",
+              "password": "%s"
+            }
+            """.formatted(password);
   }
 
   @RestController

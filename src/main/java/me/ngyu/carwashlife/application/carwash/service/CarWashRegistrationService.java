@@ -2,6 +2,7 @@ package me.ngyu.carwashlife.application.carwash.service;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashConfidencePolicy;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class CarWashRegistrationService {
 
   private final CarWashRepository carWashRepository;
@@ -25,27 +27,13 @@ public class CarWashRegistrationService {
   private final CarWashConfidencePolicy confidencePolicy;
   private final Clock clock;
 
-  public CarWashRegistrationService(
-      CarWashRepository carWashRepository,
-      CarWashHistoryRepository historyRepository,
-      MemberRepository memberRepository,
-      CarWashConfidencePolicy confidencePolicy,
-      Clock clock
-  ) {
-    this.carWashRepository = carWashRepository;
-    this.historyRepository = historyRepository;
-    this.memberRepository = memberRepository;
-    this.confidencePolicy = confidencePolicy;
-    this.clock = clock;
-  }
-
   @Transactional
   public RegisterCarWashDto.Response register(Long memberId, RegisterCarWashDto.Request request) {
     if (memberId == null) {
       throw new ApplicationException(ErrorCode.AUTHENTICATION_REQUIRED);
     }
     Member member = memberRepository.findById(memberId)
-        .orElseThrow(() -> new ApplicationException(ErrorCode.AUTHENTICATION_REQUIRED));
+                                    .orElseThrow(() -> new ApplicationException(ErrorCode.AUTHENTICATION_REQUIRED));
     if (!member.isActive()) {
       throw new ApplicationException(ErrorCode.ACCOUNT_NOT_ACTIVE);
     }
@@ -53,33 +41,33 @@ public class CarWashRegistrationService {
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
     try {
       int confidence = confidencePolicy.evaluate(
-          request.visitExperience(), request.observedAt(), false, submittedAt);
+              request.visitExperience(), request.observedAt(), false, submittedAt);
       CarWash carWash = carWashRepository.save(CarWash.create(
-          request.name(), request.latitude(), request.longitude(), submittedAt));
+              request.name(), request.latitude(), request.longitude(), submittedAt));
       CarWashHistory history = historyRepository.save(CarWashHistory.builder()
-          .carWash(carWash)
-          .memberId(member.getId())
-          .type(CarWashHistoryType.REGISTRATION)
-          .visitExperience(request.visitExperience())
-          .observedAt(request.observedAt())
-          .submittedAt(submittedAt)
-          .name(request.name())
-          .address(request.address())
-          .latitude(request.latitude())
-          .longitude(request.longitude())
-          .highPressureWaterPrice(request.highPressureWaterPrice())
-          .foamLanceAvailability(request.foamLanceAvailability())
-          .foamGunPrice(request.foamGunPrice())
-          .airGunAvailability(request.airGunAvailability())
-          .airGunPrice(request.airGunPrice())
-          .vacuumAvailability(request.vacuumAvailability())
-          .vacuumPrice(request.vacuumPrice())
-          .washBayCount(request.washBayCount())
-          .dryingBayCount(request.dryingBayCount())
-          .build());
+                                                                    .carWash(carWash)
+                                                                    .memberId(member.getId())
+                                                                    .type(CarWashHistoryType.REGISTRATION)
+                                                                    .visitExperience(request.visitExperience())
+                                                                    .observedAt(request.observedAt())
+                                                                    .submittedAt(submittedAt)
+                                                                    .name(request.name())
+                                                                    .address(request.address())
+                                                                    .latitude(request.latitude())
+                                                                    .longitude(request.longitude())
+                                                                    .highPressureWaterPrice(request.highPressureWaterPrice())
+                                                                    .foamLanceAvailability(request.foamLanceAvailability())
+                                                                    .foamGunPrice(request.foamGunPrice())
+                                                                    .airGunAvailability(request.airGunAvailability())
+                                                                    .airGunPrice(request.airGunPrice())
+                                                                    .vacuumAvailability(request.vacuumAvailability())
+                                                                    .vacuumPrice(request.vacuumPrice())
+                                                                    .washBayCount(request.washBayCount())
+                                                                    .dryingBayCount(request.dryingBayCount())
+                                                                    .build());
       carWash.selectRepresentativeHistory(history, submittedAt);
       return new RegisterCarWashDto.Response(
-          carWash.getId(), history.getId(), confidence, submittedAt);
+              carWash.getId(), history.getId(), confidence, submittedAt);
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
     }

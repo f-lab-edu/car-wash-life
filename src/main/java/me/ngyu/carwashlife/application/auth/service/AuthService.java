@@ -3,6 +3,7 @@ package me.ngyu.carwashlife.application.auth.service;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Locale;
+import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.auth.api.dto.LoginDto;
 import me.ngyu.carwashlife.application.auth.api.dto.SignupDto;
 import me.ngyu.carwashlife.application.member.domain.Member;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
   private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
@@ -23,16 +25,6 @@ public class AuthService {
   private final MemberRepository memberRepository;
   private final PasswordEncoder passwordEncoder;
   private final AccessTokenProvider accessTokenProvider;
-
-  public AuthService(
-      MemberRepository memberRepository,
-      PasswordEncoder passwordEncoder,
-      AccessTokenProvider accessTokenProvider
-  ) {
-    this.memberRepository = memberRepository;
-    this.passwordEncoder = passwordEncoder;
-    this.accessTokenProvider = accessTokenProvider;
-  }
 
   @Transactional
   public SignupDto.Response signup(SignupDto.Request request) {
@@ -42,20 +34,20 @@ public class AuthService {
     }
 
     Member member = Member.create(
-        email,
-        passwordEncoder.encode(request.password()),
-        request.residenceRegionCode(),
-        request.vehicleType(),
-        request.washExperience(),
-        OffsetDateTime.now(SERVICE_ZONE_ID)
+            email,
+            passwordEncoder.encode(request.password()),
+            request.residenceRegionCode(),
+            request.vehicleType(),
+            request.washExperience(),
+            OffsetDateTime.now(SERVICE_ZONE_ID)
     );
 
     try {
       Member savedMember = memberRepository.saveAndFlush(member);
       return new SignupDto.Response(
-          savedMember.getId(),
-          savedMember.getEmail(),
-          savedMember.getCreatedAt()
+              savedMember.getId(),
+              savedMember.getEmail(),
+              savedMember.getCreatedAt()
       );
     } catch (DataIntegrityViolationException exception) {
       throw new ApplicationException(ErrorCode.DUPLICATE_EMAIL);
@@ -65,7 +57,7 @@ public class AuthService {
   @Transactional(readOnly = true)
   public LoginDto.Response login(LoginDto.Request request) {
     Member member = memberRepository.findByEmail(normalizeEmail(request.email()))
-        .orElseThrow(() -> new ApplicationException(ErrorCode.INVALID_CREDENTIALS));
+                                    .orElseThrow(() -> new ApplicationException(ErrorCode.INVALID_CREDENTIALS));
 
     if (!passwordEncoder.matches(request.password(), member.getPassword())) {
       throw new ApplicationException(ErrorCode.INVALID_CREDENTIALS);
@@ -76,10 +68,10 @@ public class AuthService {
 
     String accessToken = accessTokenProvider.create(member.getId());
     return new LoginDto.Response(
-        accessToken,
-        "Bearer",
-        AccessTokenProvider.EXPIRES_IN_SECONDS,
-        member.getId()
+            accessToken,
+            "Bearer",
+            AccessTokenProvider.EXPIRES_IN_SECONDS,
+            member.getId()
     );
   }
 

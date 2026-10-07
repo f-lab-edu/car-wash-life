@@ -42,26 +42,26 @@ import org.springframework.test.web.servlet.MockMvc;
 class CarWashRegistrationApiIntegrationTest {
 
   private static final OffsetDateTime SUBMITTED_AT =
-      OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
+          OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private static final String REQUEST = """
-      {
-        "name": "세차생활",
-        "address": "서울시 강남구",
-        "latitude": 37.5,
-        "longitude": 127.0,
-        "visitExperience": "USED",
-        "observedAt": "2026-10-06T12:00:00+09:00",
-        "highPressureWaterPrice": 3000,
-        "foamLanceAvailability": "AVAILABLE",
-        "foamGunPrice": 4000,
-        "airGunAvailability": "AVAILABLE",
-        "airGunPrice": 0,
-        "vacuumAvailability": "AVAILABLE",
-        "vacuumPrice": 1000,
-        "washBayCount": 6,
-        "dryingBayCount": 10
-      }
-      """;
+          {
+            "name": "세차생활",
+            "address": "서울시 강남구",
+            "latitude": 37.5,
+            "longitude": 127.0,
+            "visitExperience": "USED",
+            "observedAt": "2026-10-06T12:00:00+09:00",
+            "highPressureWaterPrice": 3000,
+            "foamLanceAvailability": "AVAILABLE",
+            "foamGunPrice": 4000,
+            "airGunAvailability": "AVAILABLE",
+            "airGunPrice": 0,
+            "vacuumAvailability": "AVAILABLE",
+            "vacuumPrice": 1000,
+            "washBayCount": 6,
+            "dryingBayCount": 10
+          }
+          """;
 
   @Autowired
   private MockMvc mockMvc;
@@ -86,21 +86,21 @@ class CarWashRegistrationApiIntegrationTest {
     carWashRepository.deleteAll();
     memberRepository.deleteAll();
     member = memberRepository.saveAndFlush(Member.create(
-        "register@example.com", "encoded-password", null, null, null, SUBMITTED_AT));
+            "register@example.com", "encoded-password", null, null, null, SUBMITTED_AT));
     token = accessTokenProvider.create(member.getId());
   }
 
   @Test
   void registrationPersistsSnapshotAndReflectsItsRepresentativeInformation() throws Exception {
     mockMvc.perform(post("/car-washes")
-            .header("Authorization", "Bearer " + token)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(REQUEST))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.carWashId").isNumber())
-        .andExpect(jsonPath("$.historyId").isNumber())
-        .andExpect(jsonPath("$.confidence").value(4))
-        .andExpect(jsonPath("$.submittedAt").value("2026-10-07T12:00:00+09:00"));
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(REQUEST))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.carWashId").isNumber())
+           .andExpect(jsonPath("$.historyId").isNumber())
+           .andExpect(jsonPath("$.confidence").value(4))
+           .andExpect(jsonPath("$.submittedAt").value("2026-10-07T12:00:00+09:00"));
 
     assertThat(carWashRepository.count()).isEqualTo(1);
     assertThat(historyRepository.count()).isEqualTo(1);
@@ -137,14 +137,14 @@ class CarWashRegistrationApiIntegrationTest {
   @Test
   void unknownFacilitiesAndPricesRemainUnknownForMinimalRegistration() throws Exception {
     mockMvc.perform(post("/car-washes")
-            .header("Authorization", "Bearer " + token)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("""
-                {"name":"세차생활","latitude":37.5,"longitude":127.0,
-                 "visitExperience":"NOT_USED","observedAt":"2026-10-06T12:00:00+09:00"}
-                """))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.confidence").value(2));
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                             {"name":"세차생활","latitude":37.5,"longitude":127.0,
+                                              "visitExperience":"NOT_USED","observedAt":"2026-10-06T12:00:00+09:00"}
+                                             """))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.confidence").value(2));
 
     CarWashHistory history = historyRepository.findAll().getFirst();
     assertThat(history.getAddress()).isNull();
@@ -162,22 +162,22 @@ class CarWashRegistrationApiIntegrationTest {
   @Test
   void observationsOlderThanNinetyDaysDoNotReceiveTheRecencyPoint() throws Exception {
     mockMvc.perform(post("/car-washes")
-            .header("Authorization", "Bearer " + token)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(REQUEST.replace("2026-10-06T12:00:00+09:00", "2026-07-08T12:00:00+09:00")))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.confidence").value(3));
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(REQUEST.replace("2026-10-06T12:00:00+09:00", "2026-07-08T12:00:00+09:00")))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.confidence").value(3));
   }
 
   @ParameterizedTest(name = "invalid {0}")
   @MethodSource("invalidRequests")
   void invalidRequestsDoNotPersistAnything(String scenario, String request) throws Exception {
     mockMvc.perform(post("/car-washes")
-            .header("Authorization", "Bearer " + token)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(request))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(request))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 
     assertThat(carWashRepository.count()).isZero();
     assertThat(historyRepository.count()).isZero();
@@ -185,38 +185,38 @@ class CarWashRegistrationApiIntegrationTest {
 
   static Stream<Arguments> invalidRequests() {
     return Stream.of(
-        Arguments.of("blank name", REQUEST.replace("세차생활", " ")),
-        Arguments.of("long name", REQUEST.replace("세차생활", "가".repeat(256))),
-        Arguments.of("long address", REQUEST.replace("서울시 강남구", "가".repeat(256))),
-        Arguments.of("null name", REQUEST.replace("\"세차생활\"", "null")),
-        Arguments.of("null latitude", REQUEST.replace("37.5", "null")),
-        Arguments.of("latitude", REQUEST.replace("37.5", "91")),
-        Arguments.of("null longitude", REQUEST.replace("127.0", "null")),
-        Arguments.of("longitude", REQUEST.replace("127.0", "181")),
-        Arguments.of("null experience", REQUEST.replace("\"USED\"", "null")),
-        Arguments.of("unknown experience", REQUEST.replace("\"USED\"", "\"UNKNOWN\"")),
-        Arguments.of("null observation", REQUEST.replace("\"2026-10-06T12:00:00+09:00\"", "null")),
-        Arguments.of("future observation", REQUEST.replace("2026-10-06", "2026-10-08")),
-        Arguments.of("invalid date", REQUEST.replace("2026-10-06T12:00:00+09:00", "not-a-date")),
-        Arguments.of("water price", REQUEST.replace("\"highPressureWaterPrice\": 3000", "\"highPressureWaterPrice\": -1")),
-        Arguments.of("foam price", REQUEST.replace("\"foamGunPrice\": 4000", "\"foamGunPrice\": -1")),
-        Arguments.of("air price", REQUEST.replace("\"airGunPrice\": 0", "\"airGunPrice\": -1")),
-        Arguments.of("vacuum price", REQUEST.replace("\"vacuumPrice\": 1000", "\"vacuumPrice\": -1")),
-        Arguments.of("wash bays", REQUEST.replace("\"washBayCount\": 6", "\"washBayCount\": -1")),
-        Arguments.of("drying bays", REQUEST.replace("\"dryingBayCount\": 10", "\"dryingBayCount\": -1")),
-        Arguments.of("unknown facility", REQUEST.replace("\"foamLanceAvailability\": \"AVAILABLE\"", "\"foamLanceAvailability\": \"INVALID\""))
+            Arguments.of("blank name", REQUEST.replace("세차생활", " ")),
+            Arguments.of("long name", REQUEST.replace("세차생활", "가".repeat(256))),
+            Arguments.of("long address", REQUEST.replace("서울시 강남구", "가".repeat(256))),
+            Arguments.of("null name", REQUEST.replace("\"세차생활\"", "null")),
+            Arguments.of("null latitude", REQUEST.replace("37.5", "null")),
+            Arguments.of("latitude", REQUEST.replace("37.5", "91")),
+            Arguments.of("null longitude", REQUEST.replace("127.0", "null")),
+            Arguments.of("longitude", REQUEST.replace("127.0", "181")),
+            Arguments.of("null experience", REQUEST.replace("\"USED\"", "null")),
+            Arguments.of("unknown experience", REQUEST.replace("\"USED\"", "\"UNKNOWN\"")),
+            Arguments.of("null observation", REQUEST.replace("\"2026-10-06T12:00:00+09:00\"", "null")),
+            Arguments.of("future observation", REQUEST.replace("2026-10-06", "2026-10-08")),
+            Arguments.of("invalid date", REQUEST.replace("2026-10-06T12:00:00+09:00", "not-a-date")),
+            Arguments.of("water price", REQUEST.replace("\"highPressureWaterPrice\": 3000", "\"highPressureWaterPrice\": -1")),
+            Arguments.of("foam price", REQUEST.replace("\"foamGunPrice\": 4000", "\"foamGunPrice\": -1")),
+            Arguments.of("air price", REQUEST.replace("\"airGunPrice\": 0", "\"airGunPrice\": -1")),
+            Arguments.of("vacuum price", REQUEST.replace("\"vacuumPrice\": 1000", "\"vacuumPrice\": -1")),
+            Arguments.of("wash bays", REQUEST.replace("\"washBayCount\": 6", "\"washBayCount\": -1")),
+            Arguments.of("drying bays", REQUEST.replace("\"dryingBayCount\": 10", "\"dryingBayCount\": -1")),
+            Arguments.of("unknown facility", REQUEST.replace("\"foamLanceAvailability\": \"AVAILABLE\"", "\"foamLanceAvailability\": \"INVALID\""))
     );
   }
 
   @Test
   void contradictoryFacilityPriceRollsBackTheAlreadySavedMaster() throws Exception {
     mockMvc.perform(post("/car-washes")
-            .header("Authorization", "Bearer " + token)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(REQUEST.replace("\"airGunAvailability\": \"AVAILABLE\"",
-                "\"airGunAvailability\": \"UNAVAILABLE\"")))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(REQUEST.replace("\"airGunAvailability\": \"AVAILABLE\"",
+                                                     "\"airGunAvailability\": \"UNAVAILABLE\"")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 
     assertThat(carWashRepository.count()).isZero();
     assertThat(historyRepository.count()).isZero();
@@ -225,8 +225,8 @@ class CarWashRegistrationApiIntegrationTest {
   @Test
   void registrationRequiresAuthentication() throws Exception {
     mockMvc.perform(post("/car-washes")
-            .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
-        .andExpect(status().isUnauthorized());
+                            .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
+           .andExpect(status().isUnauthorized());
 
     assertThat(carWashRepository.count()).isZero();
     assertThat(historyRepository.count()).isZero();
@@ -235,9 +235,9 @@ class CarWashRegistrationApiIntegrationTest {
   @Test
   void malformedTokenCannotRegister() throws Exception {
     mockMvc.perform(post("/car-washes")
-            .header("Authorization", "Bearer invalid-token")
-            .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
-        .andExpect(status().isUnauthorized());
+                            .header("Authorization", "Bearer invalid-token")
+                            .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
+           .andExpect(status().isUnauthorized());
 
     assertThat(carWashRepository.count()).isZero();
     assertThat(historyRepository.count()).isZero();
@@ -248,10 +248,10 @@ class CarWashRegistrationApiIntegrationTest {
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", member.getId());
 
     mockMvc.perform(post("/car-washes")
-            .header("Authorization", "Bearer " + token)
-            .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
+           .andExpect(status().isForbidden())
+           .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
 
     assertThat(carWashRepository.count()).isZero();
     assertThat(historyRepository.count()).isZero();
@@ -262,10 +262,10 @@ class CarWashRegistrationApiIntegrationTest {
     memberRepository.deleteById(member.getId());
 
     mockMvc.perform(post("/car-washes")
-            .header("Authorization", "Bearer " + token)
-            .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
-        .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
+           .andExpect(status().isUnauthorized())
+           .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
 
     assertThat(carWashRepository.count()).isZero();
     assertThat(historyRepository.count()).isZero();

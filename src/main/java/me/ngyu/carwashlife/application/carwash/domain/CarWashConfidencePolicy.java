@@ -6,12 +6,10 @@ import java.util.Objects;
 
 public class CarWashConfidencePolicy {
 
-  public int evaluate(
-      VisitExperience visitExperience,
-      OffsetDateTime observedAt,
-      boolean hasEvidencePhoto,
-      OffsetDateTime evaluatedAt
-  ) {
+  public int evaluate(VisitExperience visitExperience,
+                      OffsetDateTime observedAt,
+                      boolean hasEvidencePhoto,
+                      OffsetDateTime evaluatedAt) {
     Objects.requireNonNull(visitExperience, "경험 유형은 필수입니다.");
     Objects.requireNonNull(observedAt, "관찰 시점은 필수입니다.");
     Objects.requireNonNull(evaluatedAt, "평가 시점은 필수입니다.");
