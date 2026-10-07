@@ -88,9 +88,9 @@ class CarWashModificationApiIntegrationTest {
     token = accessTokenProvider.create(modifyingMember.getId());
   }
 
-  @DisplayName("수정 요청은 새 이력을 추가하고 기존 이력과 대표 정보를 보존한다.")
+  @DisplayName("신뢰도가 높은 수정 요청을 제출하면 기존 이력을 보존하고 새 전체 정보 이력을 대표로 반영한다.")
   @Test
-  void modificationAppendsASnapshotAndPreservesTheOriginalAndRepresentative() throws Exception {
+  void modificationAppendsASnapshotPreservesTheOriginalAndReflectsTheHigherConfidenceHistory() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .header("Authorization", "Bearer " + token)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -125,16 +125,16 @@ class CarWashModificationApiIntegrationTest {
     assertThat(original.getVisitExperience()).isEqualTo(VisitExperience.NOT_USED);
     assertThat(original.getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
     CarWash carWash = carWashRepository.findById(carWashId).orElseThrow();
-    assertThat(carWash.getTargetHistory().getId()).isEqualTo(baseHistoryId);
+    assertThat(carWash.getTargetHistory().getId()).isEqualTo(next.getId());
     assertThat(carWash.getName()).isEqualTo("세차생활");
     assertThat(carWash.getLatitude()).isEqualTo(37.5);
     assertThat(carWash.getLongitude()).isEqualTo(127.0);
     assertThat(carWash.getUpdatedAt()).isEqualTo(SUBMITTED_AT);
   }
 
-  @DisplayName("이름과 좌표 수정 요청은 이력에 저장되고 원장은 유지된다.")
+  @DisplayName("신뢰도가 높은 이름과 위치 수정 이력을 대표로 선택하면 원장의 이름과 좌표를 함께 갱신한다.")
   @Test
-  void aNameAndLocationCorrectionDoesNotYetChangeTheMaster() throws Exception {
+  void aHigherConfidenceNameAndLocationCorrectionUpdatesTheMasterTogether() throws Exception {
     String request = modification(baseHistoryId, 3000).replace("세차생활", "새 세차생활")
                                                       .replace("37.5", "37.6")
                                                       .replace("127.0", "127.1");
@@ -144,10 +144,10 @@ class CarWashModificationApiIntegrationTest {
            .andExpect(status().isCreated());
 
     CarWash master = carWashRepository.findById(carWashId).orElseThrow();
-    assertThat(master.getTargetHistory().getId()).isEqualTo(baseHistoryId);
-    assertThat(master.getName()).isEqualTo("세차생활");
-    assertThat(master.getLatitude()).isEqualTo(37.5);
-    assertThat(master.getLongitude()).isEqualTo(127.0);
+    assertThat(master.getTargetHistory().getId()).isEqualTo(modificationHistory().getId());
+    assertThat(master.getName()).isEqualTo("새 세차생활");
+    assertThat(master.getLatitude()).isEqualTo(37.6);
+    assertThat(master.getLongitude()).isEqualTo(127.1);
   }
 
   @DisplayName("여러 수정 이력을 저장하고 다시 조회해도 변경하지 않은 정보의 원래 관찰 근거를 유지한다.")
