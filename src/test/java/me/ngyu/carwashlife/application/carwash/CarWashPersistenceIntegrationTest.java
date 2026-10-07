@@ -45,6 +45,7 @@ class CarWashPersistenceIntegrationTest {
     entityManager.flush();
     CarWashHistory nextHistory = CarWashHistory.builder()
                                                .carWash(carWash)
+                                               .baseHistory(firstHistory)
                                                .memberId(2L)
                                                .type(CarWashHistoryType.MODIFICATION)
                                                .visitExperience(VisitExperience.USED)

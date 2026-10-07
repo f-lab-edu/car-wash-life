@@ -12,7 +12,12 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -28,6 +33,14 @@ public class CarWashHistory {
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "car_wash_id", nullable = false, updatable = false)
   private CarWash carWash;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "base_history_id", updatable = false)
+  private CarWashHistory baseHistory;
+
+  @Getter(AccessLevel.NONE)
+  @Column(updatable = false, length = 1000)
+  private String changedFieldNames;
 
   @Column(nullable = false, updatable = false)
   private Long memberId;
@@ -92,33 +105,40 @@ public class CarWashHistory {
   }
 
   @Builder
-  private CarWashHistory(
-          CarWash carWash,
-          Long memberId,
-          CarWashHistoryType type,
-          VisitExperience visitExperience,
-          OffsetDateTime observedAt,
-          OffsetDateTime submittedAt,
-          String name,
-          String address,
-          Double latitude,
-          Double longitude,
-          Integer highPressureWaterPrice,
-          FacilityAvailability foamLanceAvailability,
-          Integer foamGunPrice,
-          FacilityAvailability airGunAvailability,
-          Integer airGunPrice,
-          FacilityAvailability vacuumAvailability,
-          Integer vacuumPrice,
-          Integer washBayCount,
-          Integer dryingBayCount
-  ) {
+  private CarWashHistory(CarWash carWash,
+                         CarWashHistory baseHistory,
+                         Long memberId,
+                         CarWashHistoryType type,
+                         VisitExperience visitExperience,
+                         OffsetDateTime observedAt,
+                         OffsetDateTime submittedAt,
+                         String name,
+                         String address,
+                         Double latitude,
+                         Double longitude,
+                         Integer highPressureWaterPrice,
+                         FacilityAvailability foamLanceAvailability,
+                         Integer foamGunPrice,
+                         FacilityAvailability airGunAvailability,
+                         Integer airGunPrice,
+                         FacilityAvailability vacuumAvailability,
+                         Integer vacuumPrice,
+                         Integer washBayCount,
+                         Integer dryingBayCount) {
     this.carWash = Objects.requireNonNull(carWash, "세차장 원장은 필수입니다.");
     if (memberId == null || memberId <= 0) {
       throw new IllegalArgumentException("작성자 식별자는 양수여야 합니다.");
     }
     this.memberId = memberId;
     this.type = Objects.requireNonNull(type, "이력 유형은 필수입니다.");
+    if (type == CarWashHistoryType.REGISTRATION && baseHistory != null) {
+      throw new IllegalArgumentException("최초 등록에는 기준 이력을 지정할 수 없습니다.");
+    }
+    if (type == CarWashHistoryType.MODIFICATION
+            && (baseHistory == null || !baseHistory.belongsTo(carWash))) {
+      throw new IllegalArgumentException("수정 요청에는 같은 세차장의 기준 이력이 필요합니다.");
+    }
+    this.baseHistory = baseHistory;
     this.visitExperience = Objects.requireNonNull(visitExperience, "경험 유형은 필수입니다.");
     this.observedAt = Objects.requireNonNull(observedAt, "관찰 시점은 필수입니다.");
     this.submittedAt = Objects.requireNonNull(submittedAt, "제출 시점은 필수입니다.");
@@ -147,6 +167,55 @@ public class CarWashHistory {
     this.dryingBayCount = dryingBayCount;
     validateFacilityPrice(this.airGunAvailability, airGunPrice, "에어건");
     validateFacilityPrice(this.vacuumAvailability, vacuumPrice, "청소기");
+    Set<CarWashHistoryField> changedFields = EnumSet.noneOf(CarWashHistoryField.class);
+    for (CarWashHistoryField field : CarWashHistoryField.values()) {
+      if (baseHistory == null || !Objects.equals(valueOf(field), baseHistory.valueOf(field))) {
+        changedFields.add(field);
+      }
+    }
+    if (changedFields.isEmpty()) {
+      throw new IllegalArgumentException("수정 요청에는 변경된 정보가 하나 이상 필요합니다.");
+    }
+    this.changedFieldNames = changedFields.stream().map(Enum::name)
+                                          .collect(Collectors.joining(","));
+  }
+
+  public Set<CarWashHistoryField> getChangedFields() {
+    if (changedFieldNames == null || changedFieldNames.isBlank()) {
+      return Collections.unmodifiableSet(EnumSet.allOf(CarWashHistoryField.class));
+    }
+    Set<CarWashHistoryField> fields = EnumSet.noneOf(CarWashHistoryField.class);
+    for (String name : changedFieldNames.split(",")) {
+      fields.add(CarWashHistoryField.valueOf(name));
+    }
+    return Collections.unmodifiableSet(fields);
+  }
+
+  public CarWashHistory getSourceHistory(CarWashHistoryField field) {
+    Objects.requireNonNull(field, "정보 항목은 필수입니다.");
+    CarWashHistory source = this;
+    while (source.getBaseHistory() != null && !source.getChangedFields().contains(field)) {
+      source = source.getBaseHistory();
+    }
+    return source;
+  }
+
+  private Object valueOf(CarWashHistoryField field) {
+    return switch (field) {
+      case NAME -> getName();
+      case ADDRESS -> getAddress();
+      case LATITUDE -> getLatitude();
+      case LONGITUDE -> getLongitude();
+      case HIGH_PRESSURE_WATER_PRICE -> getHighPressureWaterPrice();
+      case FOAM_LANCE_AVAILABILITY -> getFoamLanceAvailability();
+      case FOAM_GUN_PRICE -> getFoamGunPrice();
+      case AIR_GUN_AVAILABILITY -> getAirGunAvailability();
+      case AIR_GUN_PRICE -> getAirGunPrice();
+      case VACUUM_AVAILABILITY -> getVacuumAvailability();
+      case VACUUM_PRICE -> getVacuumPrice();
+      case WASH_BAY_COUNT -> getWashBayCount();
+      case DRYING_BAY_COUNT -> getDryingBayCount();
+    };
   }
 
   boolean belongsTo(CarWash carWash) {
@@ -176,11 +245,9 @@ public class CarWashHistory {
     }
   }
 
-  private static void validateFacilityPrice(
-          FacilityAvailability availability,
-          Integer price,
-          String label
-  ) {
+  private static void validateFacilityPrice(FacilityAvailability availability,
+                                            Integer price,
+                                            String label) {
     if (availability == FacilityAvailability.UNAVAILABLE && price != null) {
       throw new IllegalArgumentException(label + "을 사용할 수 없으면 가격을 입력할 수 없습니다.");
     }

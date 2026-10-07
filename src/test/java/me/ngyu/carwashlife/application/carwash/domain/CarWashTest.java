@@ -88,6 +88,7 @@ class CarWashTest {
     carWash.selectRepresentativeHistory(previousHistory, CREATED_AT);
     CarWashHistory newHistory = CarWashHistory.builder()
                                               .carWash(carWash)
+                                              .baseHistory(previousHistory)
                                               .memberId(2L)
                                               .type(CarWashHistoryType.MODIFICATION)
                                               .visitExperience(VisitExperience.USED)
