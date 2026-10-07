@@ -45,6 +45,7 @@ class CarWashHistoryModificationTest {
       case VACUUM_PRICE -> builder.vacuumPrice(1000);
       case WASH_BAY_COUNT -> builder.washBayCount(6);
       case DRYING_BAY_COUNT -> builder.dryingBayCount(10);
+      case PHOTOS -> builder.newPhotoIds(java.util.List.of(1L));
     }
     CarWashHistory next = builder.build();
 

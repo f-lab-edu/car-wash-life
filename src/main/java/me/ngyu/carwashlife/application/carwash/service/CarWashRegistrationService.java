@@ -2,12 +2,14 @@ package me.ngyu.carwashlife.application.carwash.service;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashConfidencePolicy;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryType;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -26,6 +28,7 @@ public class CarWashRegistrationService {
   private final MemberRepository memberRepository;
   private final CarWashConfidencePolicy confidencePolicy;
   private final CarWashRepresentativeService representativeService;
+  private final CarWashPhotoService photoService;
   private final Clock clock;
 
   @Transactional
@@ -39,10 +42,11 @@ public class CarWashRegistrationService {
       throw new ApplicationException(ErrorCode.ACCOUNT_NOT_ACTIVE);
     }
 
+    List<CarWashPhoto> photos = photoService.lockPendingPhotos(member.getId(), request.photoIds());
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
     try {
       int confidence = confidencePolicy.evaluate(
-              request.visitExperience(), request.observedAt(), false, submittedAt);
+              request.visitExperience(), request.observedAt(), !photos.isEmpty(), submittedAt);
       CarWash carWash = carWashRepository.save(CarWash.create(
               request.name(), request.latitude(), request.longitude(), submittedAt));
       CarWashHistory history = historyRepository.save(CarWashHistory.builder()
@@ -65,7 +69,9 @@ public class CarWashRegistrationService {
                                                                     .vacuumPrice(request.vacuumPrice())
                                                                     .washBayCount(request.washBayCount())
                                                                     .dryingBayCount(request.dryingBayCount())
+                                                                    .newPhotoIds(photos.stream().map(CarWashPhoto::getId).toList())
                                                                     .build());
+      photoService.attachPhotos(photos, history);
       representativeService.selectAndReflect(carWash, submittedAt);
       return new RegisterCarWashDto.Response(
               carWash.getId(), history.getId(), confidence, submittedAt);

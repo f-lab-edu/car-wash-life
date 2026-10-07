@@ -19,6 +19,7 @@ import me.ngyu.carwashlife.application.carwash.service.CarWashModificationServic
 import me.ngyu.carwashlife.application.carwash.service.CarWashRegistrationService;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
+import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,8 @@ class CarWashRepresentativePersistenceIntegrationTest {
   @Autowired
   private CarWashHistoryRepository historyRepository;
   @Autowired
+  private CarWashPhotoRepository photoRepository;
+  @Autowired
   private MemberRepository memberRepository;
   @Autowired
   private CarWashRegistrationService registrationService;
@@ -59,6 +62,7 @@ class CarWashRepresentativePersistenceIntegrationTest {
 
   @BeforeEach
   void setUp() {
+    photoRepository.deleteAllInBatch();
     jdbcTemplate.update("update car_wash set target_history_id = null");
     historyRepository.deleteAllInBatch();
     carWashRepository.deleteAllInBatch();
@@ -126,11 +130,11 @@ class CarWashRepresentativePersistenceIntegrationTest {
 
   private RegisterCarWashDto.Request registration(String name) {
     return new RegisterCarWashDto.Request(name, null, 37.5, 127.0, VisitExperience.NOT_USED, NOW.minusDays(100),
-                                          null, null, null, null, null, null, null, null, null);
+                                          null, null, null, null, null, null, null, null, null, null);
   }
 
   private ModifyCarWashDto.Request modification(String name, double latitude, OffsetDateTime observedAt) {
     return new ModifyCarWashDto.Request(original.historyId(), name, null, latitude, 127.0, VisitExperience.USED, observedAt,
-                                        null, null, null, null, null, null, null, null, null);
+                                        null, null, null, null, null, null, null, null, null, null);
   }
 }

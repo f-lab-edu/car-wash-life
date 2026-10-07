@@ -17,6 +17,7 @@ import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.security.AccessTokenProvider;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
+import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +55,8 @@ class CarWashQueryApiIntegrationTest {
   @Autowired
   private CarWashHistoryRepository historyRepository;
   @Autowired
+  private CarWashPhotoRepository photoRepository;
+  @Autowired
   private MemberRepository memberRepository;
   @Autowired
   private AccessTokenProvider tokenProvider;
@@ -70,6 +73,7 @@ class CarWashQueryApiIntegrationTest {
   @BeforeEach
   void setUp() throws Exception {
     clock.setInstant(NOW.toInstant());
+    photoRepository.deleteAllInBatch();
     jdbcTemplate.update("update car_wash set target_history_id = null");
     historyRepository.deleteAllInBatch();
     carWashRepository.deleteAllInBatch();
@@ -114,7 +118,7 @@ class CarWashQueryApiIntegrationTest {
              assertThat(OffsetDateTime.parse(observedAt).toInstant()).isEqualTo(NOW.minusDays(2).toInstant());
              assertThat(OffsetDateTime.parse(submittedAt).toInstant()).isEqualTo(NOW.toInstant());
            })
-           .andExpect(jsonPath("$.changedFields.length()").value(13))
+           .andExpect(jsonPath("$.changedFields.length()").value(14))
            .andExpect(jsonPath("$.memberId").doesNotExist());
   }
 

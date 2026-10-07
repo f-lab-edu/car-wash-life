@@ -1,6 +1,7 @@
 package me.ngyu.carwashlife.application.carwash.api.dto;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Set;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryField;
 import me.ngyu.carwashlife.application.carwash.domain.FacilityAvailability;
@@ -32,7 +33,8 @@ public class CarWashDetailDto {
                          FacilityAvailability vacuumAvailability,
                          Integer vacuumPrice,
                          Integer washBayCount,
-                         Integer dryingBayCount) {
+                         Integer dryingBayCount,
+                         List<CarWashPhotoDto.Snapshot> photos) {
 
   }
 }
