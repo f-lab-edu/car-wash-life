@@ -185,8 +185,8 @@ public class CarWashHistory {
       return Collections.unmodifiableSet(EnumSet.allOf(CarWashHistoryField.class));
     }
     Set<CarWashHistoryField> fields = EnumSet.noneOf(CarWashHistoryField.class);
-    for (String name : changedFieldNames.split(",")) {
-      fields.add(CarWashHistoryField.valueOf(name));
+    for (String fieldName : changedFieldNames.split(",")) {
+      fields.add(CarWashHistoryField.valueOf(fieldName));
     }
     return Collections.unmodifiableSet(fields);
   }
