@@ -101,6 +101,7 @@ class CarWashHistoryTest {
       case "foam" -> builder.foamGunPrice(-1);
       case "air" -> builder.airGunPrice(-1);
       case "vacuum" -> builder.vacuumPrice(-1);
+      default -> throw new AssertionError("지원하지 않는 시설: " + facility);
     }
 
     assertThatThrownBy(builder::build).isInstanceOf(IllegalArgumentException.class);
