@@ -25,6 +25,7 @@ public class CarWashRegistrationService {
   private final CarWashHistoryRepository historyRepository;
   private final MemberRepository memberRepository;
   private final CarWashConfidencePolicy confidencePolicy;
+  private final CarWashRepresentativeService representativeService;
   private final Clock clock;
 
   @Transactional
@@ -65,7 +66,7 @@ public class CarWashRegistrationService {
                                                                     .washBayCount(request.washBayCount())
                                                                     .dryingBayCount(request.dryingBayCount())
                                                                     .build());
-      carWash.selectRepresentativeHistory(history, submittedAt);
+      representativeService.selectAndReflect(carWash, submittedAt);
       return new RegisterCarWashDto.Response(
               carWash.getId(), history.getId(), confidence, submittedAt);
     } catch (IllegalArgumentException exception) {
