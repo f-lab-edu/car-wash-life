@@ -22,7 +22,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -46,11 +45,11 @@ import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -76,7 +75,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 class CarWashPhotoApiIntegrationTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
-  private static final Path ROOT = temporaryRoot();
+  @TempDir
+  static Path root;
   private static final String SNAPSHOT = """
           {"name":"세차생활","latitude":37.5,"longitude":127.0,"visitExperience":"USED","observedAt":"2026-10-06T12:00:00+09:00"}
           """;
@@ -112,7 +112,7 @@ class CarWashPhotoApiIntegrationTest {
 
   @DynamicPropertySource
   static void storageRoot(DynamicPropertyRegistry registry) {
-    registry.add("carwash.photo.root", ROOT::toString);
+    registry.add("carwash.photo.root", root::toString);
   }
 
   @BeforeEach
@@ -126,19 +126,10 @@ class CarWashPhotoApiIntegrationTest {
   }
 
   @AfterEach
-  void cleanUp() throws Exception {
+  void cleanUp() throws IOException {
     cleanDatabase();
-    try (var files = Files.list(ROOT)) {
+    try (var files = Files.list(root)) {
       for (Path file : files.toList()) {
-        Files.deleteIfExists(file);
-      }
-    }
-  }
-
-  @AfterAll
-  static void removeTemporaryRoot() throws Exception {
-    try (var files = Files.walk(ROOT)) {
-      for (Path file : files.sorted(Comparator.reverseOrder()).toList()) {
         Files.deleteIfExists(file);
       }
     }
@@ -160,7 +151,7 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(photo.getContentType()).isEqualTo("image/" + format);
     assertThat(photo.getSize()).isEqualTo(bytes.length);
     assertThat(photo.getStorageKey()).matches("[a-f0-9-]{36}");
-    assertThat(Files.readAllBytes(ROOT.resolve(photo.getStorageKey()))).isEqualTo(bytes);
+    assertThat(Files.readAllBytes(root.resolve(photo.getStorageKey()))).isEqualTo(bytes);
   }
 
   @Test
@@ -251,7 +242,7 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(carWashRepository.count()).isZero();
     assertThat(historyRepository.count()).isZero();
     assertThat(photoRepository.findById(photoId).orElseThrow().isPending()).isTrue();
-    try (var files = Files.list(ROOT)) {
+    try (var files = Files.list(root)) {
       assertThat(files.count()).isEqualTo(1);
     }
     register(List.of(photoId), 5);
@@ -302,7 +293,7 @@ class CarWashPhotoApiIntegrationTest {
              .andExpect(status().isBadRequest());
     }
     assertThat(photoRepository.count()).isZero();
-    try (var files = Files.list(ROOT)) {
+    try (var files = Files.list(root)) {
       assertThat(files.count()).isZero();
     }
   }
@@ -362,7 +353,7 @@ class CarWashPhotoApiIntegrationTest {
     });
 
     assertThat(photoRepository.count()).isZero();
-    try (var files = Files.list(ROOT)) {
+    try (var files = Files.list(root)) {
       assertThat(files.count()).isZero();
     }
   }
@@ -381,7 +372,7 @@ class CarWashPhotoApiIntegrationTest {
     })).isInstanceOf(IllegalStateException.class);
 
     assertThat(photoRepository.count()).isZero();
-    try (var files = Files.list(ROOT)) {
+    try (var files = Files.list(root)) {
       assertThat(files.count()).isZero();
     }
   }
@@ -521,11 +512,5 @@ class CarWashPhotoApiIntegrationTest {
     }
   }
 
-  private static Path temporaryRoot() {
-    try {
-      return Files.createTempDirectory("car-wash-photo-test-");
-    } catch (IOException exception) {
-      throw new UncheckedIOException(exception);
-    }
-  }
+
 }

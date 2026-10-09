@@ -180,7 +180,7 @@ public class CarWashHistory {
     validateFacilityPrice(this.airGunAvailability, airGunPrice, "에어건");
     validateFacilityPrice(this.vacuumAvailability, vacuumPrice, "청소기");
     List<Long> evidenceIds = newPhotoIds == null ? List.of() : newPhotoIds;
-    if (evidenceIds.size() > 5 || evidenceIds.stream().anyMatch(id -> id == null || id <= 0)
+    if (evidenceIds.size() > 5 || evidenceIds.stream().anyMatch(photoId -> photoId == null || photoId <= 0)
             || new HashSet<>(evidenceIds).size() != evidenceIds.size()) {
       throw new IllegalArgumentException("사진 식별자는 중복 없는 양수이며 최대 5개입니다.");
     }
@@ -192,6 +192,10 @@ public class CarWashHistory {
     snapshotIds.addAll(evidenceIds);
     this.photoIdValues = encodePhotoIds(snapshotIds);
     this.evidencePhotoIdValues = encodePhotoIds(evidenceIds);
+    this.changedFieldNames = calculateChangedFieldNames();
+  }
+
+  private String calculateChangedFieldNames() {
     Set<CarWashHistoryField> changedFields = EnumSet.noneOf(CarWashHistoryField.class);
     for (CarWashHistoryField field : CarWashHistoryField.values()) {
       if (baseHistory == null || !Objects.equals(valueOf(field), baseHistory.valueOf(field))) {
@@ -201,8 +205,8 @@ public class CarWashHistory {
     if (changedFields.isEmpty()) {
       throw new IllegalArgumentException("수정 요청에는 변경된 정보가 하나 이상 필요합니다.");
     }
-    this.changedFieldNames = changedFields.stream().map(Enum::name)
-                                          .collect(Collectors.joining(","));
+    return changedFields.stream().map(Enum::name)
+                        .collect(Collectors.joining(","));
   }
 
   public Set<CarWashHistoryField> getChangedFields() {

@@ -3,9 +3,11 @@ package me.ngyu.carwashlife.application.carwash.service;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -128,5 +130,19 @@ public class CarWashPhotoService {
 
   public record PhotoContent(byte[] content, String contentType) {
 
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof PhotoContent photo && Arrays.equals(content, photo.content) && Objects.equals(contentType, photo.contentType);
+    }
+
+    @Override
+    public int hashCode() {
+      return 31 * Arrays.hashCode(content) + Objects.hashCode(contentType);
+    }
+
+    @Override
+    public String toString() {
+      return "PhotoContent[content=" + Arrays.toString(content) + ", contentType=" + contentType + "]";
+    }
   }
 }

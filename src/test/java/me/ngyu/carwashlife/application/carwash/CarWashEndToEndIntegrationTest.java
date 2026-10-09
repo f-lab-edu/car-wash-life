@@ -6,7 +6,6 @@ import com.jayway.jsonpath.JsonPath;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -25,11 +24,11 @@ import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -53,7 +52,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 })
 class CarWashEndToEndIntegrationTest {
 
-  private static final Path ROOT = temporaryRoot();
+  @TempDir
+  static Path root;
   private static final String BOUNDARY = "car-wash-e2e-multipart-boundary";
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
@@ -75,7 +75,7 @@ class CarWashEndToEndIntegrationTest {
 
   @DynamicPropertySource
   static void storageRoot(DynamicPropertyRegistry registry) {
-    registry.add("carwash.photo.root", ROOT::toString);
+    registry.add("carwash.photo.root", root::toString);
   }
 
   @BeforeEach
@@ -84,31 +84,26 @@ class CarWashEndToEndIntegrationTest {
   }
 
   @AfterEach
-  void cleanUp() throws Exception {
+  void cleanUp() throws IOException {
     client.close();
     cleanDatabase();
-    try (var files = Files.list(ROOT)) {
+    try (var files = Files.list(root)) {
       for (Path file : files.toList()) {
         Files.deleteIfExists(file);
       }
     }
   }
 
-  @AfterAll
-  static void removeTemporaryRoot() throws Exception {
-    Files.deleteIfExists(ROOT);
-  }
-
   @Test
   @DisplayName("실제 HTTP로 등록과 수정을 이어서 요청하면 최고점 이력과 기존 정보 및 사진 출처를 보존한다.")
-  void realHttpAuthenticationUploadRegistrationModificationAndDetailPreserveTheWinningSnapshot() throws Exception {
+  void realHttpAuthenticationUploadRegistrationModificationAndDetailPreserveTheWinningSnapshot() throws IOException, InterruptedException {
     String token = signupAndLogin();
     byte[] png = image();
     HttpResponse<String> firstUpload = upload(token, png);
     assertThat(firstUpload.statusCode()).isEqualTo(201);
     Long firstPhotoId = id(firstUpload.body(), "$.photoId");
     assertThat(JsonPath.<String>read(firstUpload.body(), "$.url")).isEqualTo("/car-wash-photos/" + firstPhotoId);
-    assertThat(firstUpload.body()).doesNotContain("storageKey", "ownerId", ROOT.toString());
+    assertThat(firstUpload.body()).doesNotContain("storageKey", "ownerId", root.toString());
 
     HttpResponse<String> registration = postJson("/car-washes", token, snapshot("최초 세차생활", "NOT_USED", 37.5, 127.0, null, firstPhotoId));
     assertThat(registration.statusCode()).isEqualTo(201);
@@ -142,7 +137,7 @@ class CarWashEndToEndIntegrationTest {
     assertThat(id(detail.body(), "$.photos[0].sourceHistoryId")).isEqualTo(originalHistoryId);
     assertThat(id(detail.body(), "$.photos[1].photoId")).isEqualTo(secondPhotoId);
     assertThat(id(detail.body(), "$.photos[1].sourceHistoryId")).isEqualTo(winningHistoryId);
-    assertThat(detail.body()).doesNotContain("memberId", "ownerId", "storageKey", ROOT.toString());
+    assertThat(detail.body()).doesNotContain("memberId", "ownerId", "storageKey", root.toString());
 
     CarWash master = carWashRepository.findById(carWashId).orElseThrow();
     assertThat(master.getTargetHistory().getId()).isEqualTo(winningHistoryId);
@@ -174,7 +169,7 @@ class CarWashEndToEndIntegrationTest {
 
   @Test
   @DisplayName("인증 없이 실제 HTTP로 업로드하거나 등록하면 데이터와 파일을 만들지 않고 거절한다.")
-  void unauthenticatedRealHttpUploadsAndRegistrationsHaveNoSideEffects() throws Exception {
+  void unauthenticatedRealHttpUploadsAndRegistrationsHaveNoSideEffects() throws IOException, InterruptedException {
     assertThat(upload(null, image()).statusCode()).isEqualTo(401);
     assertThat(postJson("/car-washes", null, snapshot("세차생활", "USED", 37.5, 127.0, null, null)).statusCode()).isEqualTo(401);
 
@@ -183,7 +178,7 @@ class CarWashEndToEndIntegrationTest {
 
   @Test
   @DisplayName("실제 업로드 파일이 5MiB를 초과하면 데이터와 파일을 만들지 않고 JSON 413 오류를 반환한다.")
-  void theProductionSingleFileLimitReturnsAJson413ThroughTheRealServletContainer() throws Exception {
+  void theProductionSingleFileLimitReturnsAJson413ThroughTheRealServletContainer() throws IOException, InterruptedException {
     String token = signupAndLogin();
 
     HttpResponse<String> response = upload(token, new byte[5 * 1024 * 1024 + 1]);
@@ -195,7 +190,7 @@ class CarWashEndToEndIntegrationTest {
 
   @Test
   @DisplayName("각 파일이 5MiB 이하라도 실제 업로드 요청 합계가 6MiB를 초과하면 부작용 없이 JSON 413 오류를 반환한다.")
-  void theProductionTotalRequestLimitRejectsMultipleIndividuallySmallFilesWithoutSideEffects() throws Exception {
+  void theProductionTotalRequestLimitRejectsMultipleIndividuallySmallFilesWithoutSideEffects() throws IOException, InterruptedException {
     String token = signupAndLogin();
 
     HttpResponse<String> response = upload(token, new byte[4 * 1024 * 1024], new byte[4 * 1024 * 1024]);
@@ -205,7 +200,7 @@ class CarWashEndToEndIntegrationTest {
     assertNoPhotoOrCarWashSideEffects();
   }
 
-  private String signupAndLogin() throws Exception {
+  private String signupAndLogin() throws IOException, InterruptedException {
     String credentials = "{\"email\":\"http@example.com\",\"password\":\"WashLife!123\"}";
     assertThat(postJson("/auth/signup", null, credentials).statusCode()).isEqualTo(201);
     HttpResponse<String> login = postJson("/auth/login", null, credentials);
@@ -213,12 +208,12 @@ class CarWashEndToEndIntegrationTest {
     return JsonPath.read(login.body(), "$.accessToken");
   }
 
-  private HttpResponse<String> postJson(String path, String token, String json) throws Exception {
+  private HttpResponse<String> postJson(String path, String token, String json) throws IOException, InterruptedException {
     return client.send(authenticated(path, token).header("Content-Type", "application/json")
                                                  .POST(HttpRequest.BodyPublishers.ofString(json)).build(), HttpResponse.BodyHandlers.ofString());
   }
 
-  private HttpResponse<String> upload(String token, byte[]... files) throws Exception {
+  private HttpResponse<String> upload(String token, byte[]... files) throws IOException, InterruptedException {
     ByteArrayOutputStream multipart = new ByteArrayOutputStream();
     for (byte[] file : files) {
       multipart.write(("--" + BOUNDARY + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"photo.png\"\r\nContent-Type: image/png\r\n\r\n").getBytes(StandardCharsets.UTF_8));
@@ -252,11 +247,11 @@ class CarWashEndToEndIntegrationTest {
     return ((Number) JsonPath.read(json, path)).longValue();
   }
 
-  private void assertNoPhotoOrCarWashSideEffects() throws Exception {
+  private void assertNoPhotoOrCarWashSideEffects() throws IOException {
     assertThat(photoRepository.count()).isZero();
     assertThat(historyRepository.count()).isZero();
     assertThat(carWashRepository.count()).isZero();
-    try (var files = Files.list(ROOT)) {
+    try (var files = Files.list(root)) {
       assertThat(files.count()).isZero();
     }
   }
@@ -275,11 +270,5 @@ class CarWashEndToEndIntegrationTest {
     return output.toByteArray();
   }
 
-  private static Path temporaryRoot() {
-    try {
-      return Files.createTempDirectory("car-wash-http-e2e-");
-    } catch (IOException exception) {
-      throw new UncheckedIOException(exception);
-    }
-  }
+
 }

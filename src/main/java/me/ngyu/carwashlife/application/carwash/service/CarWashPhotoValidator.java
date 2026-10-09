@@ -3,7 +3,9 @@ package me.ngyu.carwashlife.application.carwash.service;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Objects;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.MemoryCacheImageInputStream;
@@ -65,5 +67,19 @@ public class CarWashPhotoValidator {
 
   public record ValidatedPhoto(byte[] content, String contentType) {
 
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof ValidatedPhoto photo && Arrays.equals(content, photo.content) && Objects.equals(contentType, photo.contentType);
+    }
+
+    @Override
+    public int hashCode() {
+      return 31 * Arrays.hashCode(content) + Objects.hashCode(contentType);
+    }
+
+    @Override
+    public String toString() {
+      return "ValidatedPhoto[content=" + Arrays.toString(content) + ", contentType=" + contentType + "]";
+    }
   }
 }
