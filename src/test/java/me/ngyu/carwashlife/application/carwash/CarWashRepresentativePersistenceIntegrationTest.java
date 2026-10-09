@@ -19,6 +19,7 @@ import me.ngyu.carwashlife.application.carwash.service.CarWashModificationServic
 import me.ngyu.carwashlife.application.carwash.service.CarWashRegistrationService;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
+import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,8 @@ class CarWashRepresentativePersistenceIntegrationTest {
   @Autowired
   private CarWashHistoryRepository historyRepository;
   @Autowired
+  private CarWashPhotoRepository photoRepository;
+  @Autowired
   private MemberRepository memberRepository;
   @Autowired
   private CarWashRegistrationService registrationService;
@@ -59,6 +62,7 @@ class CarWashRepresentativePersistenceIntegrationTest {
 
   @BeforeEach
   void setUp() {
+    photoRepository.deleteAllInBatch();
     jdbcTemplate.update("update car_wash set target_history_id = null");
     historyRepository.deleteAllInBatch();
     carWashRepository.deleteAllInBatch();
@@ -67,8 +71,8 @@ class CarWashRepresentativePersistenceIntegrationTest {
     original = registrationService.register(memberId, registration("세차생활"));
   }
 
-  @DisplayName("원장 잠금 조회는 요청한 세차장에 비관적 쓰기 잠금을 적용하고 해당 세차장의 이력만 조회한다.")
   @Test
+  @DisplayName("원장 잠금 조회는 요청한 세차장에 비관적 쓰기 잠금을 적용하고 해당 세차장의 이력만 조회한다.")
   void explicitMasterQueryLoadsOnlyTheRequestedMasterWithAPessimisticWriteLock() {
     RegisterCarWashDto.Response other = registrationService.register(memberId, registration("다른 세차장"));
 
@@ -82,8 +86,8 @@ class CarWashRepresentativePersistenceIntegrationTest {
     });
   }
 
-  @DisplayName("독립된 트랜잭션에서 동시에 수정해도 두 이력을 보존하고 최신 관찰 이력의 정보를 원장에 반영한다.")
   @Test
+  @DisplayName("독립된 트랜잭션에서 동시에 수정해도 두 이력을 보존하고 최신 관찰 이력의 정보를 원장에 반영한다.")
   void concurrentIndependentModificationsPreserveBothHistoriesAndSelectOneConsistentWinner() throws Exception {
     CountDownLatch ready = new CountDownLatch(2);
     CountDownLatch start = new CountDownLatch(1);
@@ -126,11 +130,11 @@ class CarWashRepresentativePersistenceIntegrationTest {
 
   private RegisterCarWashDto.Request registration(String name) {
     return new RegisterCarWashDto.Request(name, null, 37.5, 127.0, VisitExperience.NOT_USED, NOW.minusDays(100),
-                                          null, null, null, null, null, null, null, null, null);
+                                          null, null, null, null, null, null, null, null, null, null);
   }
 
   private ModifyCarWashDto.Request modification(String name, double latitude, OffsetDateTime observedAt) {
     return new ModifyCarWashDto.Request(original.historyId(), name, null, latitude, 127.0, VisitExperience.USED, observedAt,
-                                        null, null, null, null, null, null, null, null, null);
+                                        null, null, null, null, null, null, null, null, null, null);
   }
 }

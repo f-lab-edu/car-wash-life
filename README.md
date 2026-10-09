@@ -23,3 +23,5 @@ com.carwashlife
     ├── exception
     └── ...
 ```
+
+회원 세차장 등록·수정 API와 사진 저장 경로 설정은 [MVP 기능 문서](docs/car-wash-mvp.md)를 참고한다.

@@ -16,6 +16,7 @@ import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.security.AccessTokenProvider;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
+import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +54,8 @@ class CarWashModificationApiIntegrationTest {
   @Autowired
   private CarWashHistoryRepository historyRepository;
   @Autowired
+  private CarWashPhotoRepository photoRepository;
+  @Autowired
   private MemberRepository memberRepository;
   @Autowired
   private AccessTokenProvider accessTokenProvider;
@@ -69,6 +72,7 @@ class CarWashModificationApiIntegrationTest {
 
   @BeforeEach
   void setUp() throws Exception {
+    photoRepository.deleteAllInBatch();
     jdbcTemplate.update("update car_wash set target_history_id = null");
     historyRepository.deleteAllInBatch();
     carWashRepository.deleteAllInBatch();
@@ -88,8 +92,8 @@ class CarWashModificationApiIntegrationTest {
     token = accessTokenProvider.create(modifyingMember.getId());
   }
 
-  @DisplayName("신뢰도가 높은 수정 요청을 제출하면 기존 이력을 보존하고 새 전체 정보 이력을 대표로 반영한다.")
   @Test
+  @DisplayName("신뢰도가 높은 수정 요청을 제출하면 기존 이력을 보존하고 새 전체 정보 이력을 대표로 반영한다.")
   void modificationAppendsASnapshotPreservesTheOriginalAndReflectsTheHigherConfidenceHistory() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .header("Authorization", "Bearer " + token)
@@ -132,8 +136,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(carWash.getUpdatedAt()).isEqualTo(SUBMITTED_AT);
   }
 
-  @DisplayName("신뢰도가 높은 이름과 위치 수정 이력을 대표로 선택하면 원장의 이름과 좌표를 함께 갱신한다.")
   @Test
+  @DisplayName("신뢰도가 높은 이름과 위치 수정 이력을 대표로 선택하면 원장의 이름과 좌표를 함께 갱신한다.")
   void aHigherConfidenceNameAndLocationCorrectionUpdatesTheMasterTogether() throws Exception {
     String request = modification(baseHistoryId, 3000).replace("세차생활", "새 세차생활")
                                                       .replace("37.5", "37.6")
@@ -150,8 +154,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(master.getLongitude()).isEqualTo(127.1);
   }
 
-  @DisplayName("여러 수정 이력을 저장하고 다시 조회해도 변경하지 않은 정보의 원래 관찰 근거를 유지한다.")
   @Test
+  @DisplayName("여러 수정 이력을 저장하고 다시 조회해도 변경하지 않은 정보의 원래 관찰 근거를 유지한다.")
   void unchangedFieldsRetainOriginalSourcesAfterReloadingAMultiLevelChain() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .header("Authorization", "Bearer " + token)
@@ -178,8 +182,8 @@ class CarWashModificationApiIntegrationTest {
     });
   }
 
-  @DisplayName("변경 항목 기록이 없는 기존 등록 이력도 수정 요청의 원래 정보 출처로 유지한다.")
   @Test
+  @DisplayName("변경 항목 기록이 없는 기존 등록 이력도 수정 요청의 원래 정보 출처로 유지한다.")
   void legacyRegistrationWithoutChangedFieldsRemainsAValidOriginalSource() throws Exception {
     jdbcTemplate.update("update car_wash_history set changed_field_names = null where id = ?", baseHistoryId);
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
@@ -199,8 +203,8 @@ class CarWashModificationApiIntegrationTest {
     });
   }
 
-  @DisplayName("최근 수정 이력이 있어도 과거 이력을 기준으로 새 수정 요청을 저장한다.")
   @Test
+  @DisplayName("최근 수정 이력이 있어도 과거 이력을 기준으로 새 수정 요청을 저장한다.")
   void aCorrectionCanForkFromAnOlderHistory() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .header("Authorization", "Bearer " + token)
@@ -217,8 +221,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(historyRepository.count()).isEqualTo(3);
   }
 
-  @DisplayName("주소와 가격을 null로 제출하면 해당 정보 삭제를 변경 항목으로 저장한다.")
   @Test
+  @DisplayName("주소와 가격을 null로 제출하면 해당 정보 삭제를 변경 항목으로 저장한다.")
   void clearingNullableInformationIsStoredAsAChange() throws Exception {
     String request = modification(baseHistoryId, 3000).replace("\"address\":\"서울시\"", "\"address\":null")
                                                       .replace("\"highPressureWaterPrice\":3000", "\"highPressureWaterPrice\":null");
@@ -233,8 +237,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(next.getChangedFields()).containsExactly(CarWashHistoryField.ADDRESS, CarWashHistoryField.HIGH_PRESSURE_WATER_PRICE);
   }
 
-  @DisplayName("정보 변경 없이 경험 유형과 관찰 시점만 바꾸면 새 수정 이력을 만들지 않고 거절한다.")
   @Test
+  @DisplayName("정보 변경 없이 경험 유형과 관찰 시점만 바꾸면 새 수정 이력을 만들지 않고 거절한다.")
   void changingOnlyMetadataDoesNotAppendAHistory() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .header("Authorization", "Bearer " + token)
@@ -246,8 +250,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(historyRepository.count()).isEqualTo(1);
   }
 
-  @DisplayName("다른 세차장의 이력을 기준으로 수정하면 새 이력을 만들지 않고 거절한다.")
   @Test
+  @DisplayName("다른 세차장의 이력을 기준으로 수정하면 새 이력을 만들지 않고 거절한다.")
   void anotherCarWashHistoryCannotBeUsedAsTheBase() throws Exception {
     mockMvc.perform(post("/car-washes")
                             .header("Authorization", "Bearer " + token)
@@ -265,8 +269,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(historyRepository.count()).isEqualTo(2);
   }
 
-  @DisplayName("존재하지 않는 세차장에 수정 요청을 제출하면 404 오류를 반환한다.")
   @Test
+  @DisplayName("존재하지 않는 세차장에 수정 요청을 제출하면 404 오류를 반환한다.")
   void missingCarWashIsReportedAsNotFound() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", Long.MAX_VALUE)
                             .header("Authorization", "Bearer " + token)
@@ -278,8 +282,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(historyRepository.count()).isEqualTo(1);
   }
 
-  @DisplayName("존재하지 않는 기준 이력으로 수정 요청을 제출하면 404 오류를 반환한다.")
   @Test
+  @DisplayName("존재하지 않는 기준 이력으로 수정 요청을 제출하면 404 오류를 반환한다.")
   void missingBaseHistoryIsReportedAsNotFound() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .header("Authorization", "Bearer " + token)
@@ -291,8 +295,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(historyRepository.count()).isEqualTo(1);
   }
 
-  @DisplayName("수정 요청값이 올바르지 않으면 기존 정보와 대표 이력을 보존하고 새 이력을 만들지 않는다.")
   @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("수정 요청값이 올바르지 않으면 기존 정보와 대표 이력을 보존하고 새 이력을 만들지 않는다.")
   @MethodSource("invalidFields")
   void invalidRequestsCannotAppendOrChangeExistingInformation(String scenario, String original, String replacement) throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
@@ -326,8 +330,8 @@ class CarWashModificationApiIntegrationTest {
     );
   }
 
-  @DisplayName("인증 없이 수정 요청을 제출하면 새 이력을 만들지 않고 거절한다.")
   @Test
+  @DisplayName("인증 없이 수정 요청을 제출하면 새 이력을 만들지 않고 거절한다.")
   void unauthenticatedRequestsCannotModify() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .contentType(MediaType.APPLICATION_JSON).content(modification(baseHistoryId, 3500)))
@@ -336,8 +340,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(historyRepository.count()).isEqualTo(1);
   }
 
-  @DisplayName("잘못된 토큰으로 수정 요청을 제출하면 새 이력을 만들지 않고 거절한다.")
   @Test
+  @DisplayName("잘못된 토큰으로 수정 요청을 제출하면 새 이력을 만들지 않고 거절한다.")
   void malformedTokensCannotModify() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .header("Authorization", "Bearer invalid-token")
@@ -347,8 +351,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(historyRepository.count()).isEqualTo(1);
   }
 
-  @DisplayName("토큰 발급 뒤 정지된 회원이 수정 요청을 제출하면 새 이력을 만들지 않고 거절한다.")
   @Test
+  @DisplayName("토큰 발급 뒤 정지된 회원이 수정 요청을 제출하면 새 이력을 만들지 않고 거절한다.")
   void suspendedMembersCannotModifyEvenWithAPreviouslyIssuedToken() throws Exception {
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", modifyingMember.getId());
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
@@ -360,8 +364,8 @@ class CarWashModificationApiIntegrationTest {
     assertThat(historyRepository.count()).isEqualTo(1);
   }
 
-  @DisplayName("삭제된 회원의 토큰으로 수정 요청을 제출하면 새 이력을 만들지 않고 거절한다.")
   @Test
+  @DisplayName("삭제된 회원의 토큰으로 수정 요청을 제출하면 새 이력을 만들지 않고 거절한다.")
   void deletedMembersCannotModify() throws Exception {
     memberRepository.deleteById(modifyingMember.getId());
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)

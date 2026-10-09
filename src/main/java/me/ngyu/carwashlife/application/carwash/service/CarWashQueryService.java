@@ -22,6 +22,7 @@ public class CarWashQueryService {
   private final CarWashRepository carWashRepository;
   private final MemberRepository memberRepository;
   private final CarWashRepresentativeService representativeService;
+  private final CarWashPhotoService photoService;
   private final Clock clock;
 
   @Transactional
@@ -45,6 +46,6 @@ public class CarWashQueryService {
             history.getName(), history.getAddress(), history.getLatitude(), history.getLongitude(),
             history.getHighPressureWaterPrice(), history.getFoamLanceAvailability(), history.getFoamGunPrice(),
             history.getAirGunAvailability(), history.getAirGunPrice(), history.getVacuumAvailability(), history.getVacuumPrice(),
-            history.getWashBayCount(), history.getDryingBayCount());
+            history.getWashBayCount(), history.getDryingBayCount(), photoService.snapshots(history));
   }
 }

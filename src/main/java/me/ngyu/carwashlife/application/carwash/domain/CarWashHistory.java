@@ -12,8 +12,11 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -41,6 +44,14 @@ public class CarWashHistory {
   @Getter(AccessLevel.NONE)
   @Column(updatable = false, length = 1000)
   private String changedFieldNames;
+
+  @Getter(AccessLevel.NONE)
+  @Column(updatable = false, columnDefinition = "text")
+  private String photoIdValues;
+
+  @Getter(AccessLevel.NONE)
+  @Column(updatable = false, columnDefinition = "text")
+  private String evidencePhotoIdValues;
 
   @Column(nullable = false, updatable = false)
   private Long memberId;
@@ -124,7 +135,8 @@ public class CarWashHistory {
                          FacilityAvailability vacuumAvailability,
                          Integer vacuumPrice,
                          Integer washBayCount,
-                         Integer dryingBayCount) {
+                         Integer dryingBayCount,
+                         List<Long> newPhotoIds) {
     this.carWash = Objects.requireNonNull(carWash, "세차장 원장은 필수입니다.");
     if (memberId == null || memberId <= 0) {
       throw new IllegalArgumentException("작성자 식별자는 양수여야 합니다.");
@@ -167,6 +179,23 @@ public class CarWashHistory {
     this.dryingBayCount = dryingBayCount;
     validateFacilityPrice(this.airGunAvailability, airGunPrice, "에어건");
     validateFacilityPrice(this.vacuumAvailability, vacuumPrice, "청소기");
+    List<Long> evidenceIds = newPhotoIds == null ? List.of() : newPhotoIds;
+    if (evidenceIds.size() > 5 || evidenceIds.stream().anyMatch(photoId -> photoId == null || photoId <= 0)
+            || new HashSet<>(evidenceIds).size() != evidenceIds.size()) {
+      throw new IllegalArgumentException("사진 식별자는 중복 없는 양수이며 최대 5개입니다.");
+    }
+    List<Long> inheritedIds = baseHistory == null ? List.of() : baseHistory.getPhotoIds();
+    if (evidenceIds.stream().anyMatch(inheritedIds::contains)) {
+      throw new IllegalArgumentException("상속한 사진을 새 관찰 근거로 제출할 수 없습니다.");
+    }
+    List<Long> snapshotIds = new ArrayList<>(inheritedIds);
+    snapshotIds.addAll(evidenceIds);
+    this.photoIdValues = encodePhotoIds(snapshotIds);
+    this.evidencePhotoIdValues = encodePhotoIds(evidenceIds);
+    this.changedFieldNames = calculateChangedFieldNames();
+  }
+
+  private String calculateChangedFieldNames() {
     Set<CarWashHistoryField> changedFields = EnumSet.noneOf(CarWashHistoryField.class);
     for (CarWashHistoryField field : CarWashHistoryField.values()) {
       if (baseHistory == null || !Objects.equals(valueOf(field), baseHistory.valueOf(field))) {
@@ -176,8 +205,8 @@ public class CarWashHistory {
     if (changedFields.isEmpty()) {
       throw new IllegalArgumentException("수정 요청에는 변경된 정보가 하나 이상 필요합니다.");
     }
-    this.changedFieldNames = changedFields.stream().map(Enum::name)
-                                          .collect(Collectors.joining(","));
+    return changedFields.stream().map(Enum::name)
+                        .collect(Collectors.joining(","));
   }
 
   public Set<CarWashHistoryField> getChangedFields() {
@@ -200,6 +229,29 @@ public class CarWashHistory {
     return source;
   }
 
+  public List<Long> getPhotoIds() {
+    return decodePhotoIds(photoIdValues);
+  }
+
+  public List<Long> getEvidencePhotoIds() {
+    return decodePhotoIds(evidencePhotoIdValues);
+  }
+
+  public boolean hasEvidencePhotos() {
+    return !getEvidencePhotoIds().isEmpty();
+  }
+
+  private static String encodePhotoIds(List<Long> ids) {
+    return ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+  }
+
+  private static List<Long> decodePhotoIds(String ids) {
+    if (ids == null || ids.isBlank()) {
+      return List.of();
+    }
+    return java.util.Arrays.stream(ids.split(",")).map(Long::valueOf).toList();
+  }
+
   private Object valueOf(CarWashHistoryField field) {
     return switch (field) {
       case NAME -> getName();
@@ -215,6 +267,7 @@ public class CarWashHistory {
       case VACUUM_PRICE -> getVacuumPrice();
       case WASH_BAY_COUNT -> getWashBayCount();
       case DRYING_BAY_COUNT -> getDryingBayCount();
+      case PHOTOS -> getPhotoIds();
     };
   }
 
