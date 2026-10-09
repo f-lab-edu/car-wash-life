@@ -13,15 +13,15 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResponse> handleApplicationException(ApplicationException exception) {
     ErrorCode errorCode = exception.getErrorCode();
     return ResponseEntity
-        .status(errorCode.getStatus())
-        .body(ErrorResponse.from(errorCode));
+            .status(errorCode.getStatus())
+            .body(ErrorResponse.from(errorCode));
   }
 
   @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
   public ResponseEntity<ErrorResponse> handleValidationException(Exception exception) {
     ErrorCode errorCode = ErrorCode.VALIDATION_ERROR;
     return ResponseEntity
-        .status(errorCode.getStatus())
-        .body(ErrorResponse.from(errorCode));
+            .status(errorCode.getStatus())
+            .body(ErrorResponse.from(errorCode));
   }
 }
