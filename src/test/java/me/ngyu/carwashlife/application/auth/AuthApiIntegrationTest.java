@@ -17,6 +17,7 @@ import me.ngyu.carwashlife.application.member.domain.VehicleType;
 import me.ngyu.carwashlife.application.member.domain.WashExperience;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,14 +38,14 @@ import org.springframework.web.bind.annotation.RestController;
 class AuthApiIntegrationTest {
 
   private static final String SIGNUP_REQUEST = """
-      {
-        "email": "User@Example.com",
-        "password": "WashLife!123",
-        "residenceRegionCode": "11680",
-        "vehicleType": "SUV",
-        "washExperience": "OCCASIONAL"
-      }
-      """;
+          {
+            "email": "User@Example.com",
+            "password": "WashLife!123",
+            "residenceRegionCode": "11680",
+            "vehicleType": "SUV",
+            "washExperience": "OCCASIONAL"
+          }
+          """;
 
   @Autowired
   private MockMvc mockMvc;
@@ -64,14 +65,15 @@ class AuthApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("회원가입하면 이메일을 정규화하고 비밀번호 해시와 회원 정보를 저장한다.")
   void signupStoresRequiredAndOptionalMemberInformation() throws Exception {
     mockMvc.perform(post("/auth/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(SIGNUP_REQUEST))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.memberId").isNumber())
-        .andExpect(jsonPath("$.email").value("user@example.com"))
-        .andExpect(jsonPath("$.createdAt", endsWith("+09:00")));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(SIGNUP_REQUEST))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.memberId").isNumber())
+           .andExpect(jsonPath("$.email").value("user@example.com"))
+           .andExpect(jsonPath("$.createdAt", endsWith("+09:00")));
 
     Member member = memberRepository.findByEmail("user@example.com").orElseThrow();
     assertThat(passwordEncoder.matches("WashLife!123", member.getPassword())).isTrue();
@@ -83,117 +85,123 @@ class AuthApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("이미 가입한 이메일로 회원가입하면 중복 오류를 반환한다.")
   void signupRejectsDuplicateEmail() throws Exception {
     signup();
 
     mockMvc.perform(post("/auth/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(SIGNUP_REQUEST))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("DUPLICATE_EMAIL"));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(SIGNUP_REQUEST))
+           .andExpect(status().isConflict())
+           .andExpect(jsonPath("$.code").value("DUPLICATE_EMAIL"));
   }
 
   @Test
+  @DisplayName("이메일이나 비밀번호가 올바르지 않으면 회원가입을 거절한다.")
   void signupRejectsInvalidRequest() throws Exception {
     mockMvc.perform(post("/auth/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("{\"email\":\"not-an-email\",\"password\":\"\"}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"not-an-email\",\"password\":\"\"}"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
   }
 
   @Test
+  @DisplayName("로그인하면 회원 식별자와 만료 시각을 담은 24시간 액세스 토큰을 발급한다.")
   void loginIssuesAccessTokenValidForTwentyFourHours() throws Exception {
     Member member = signup();
     long issuedAfter = Instant.now().getEpochSecond();
 
     MvcResult result = mockMvc.perform(post("/auth/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(loginJson("WashLife!123")))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.accessToken").isString())
-        .andExpect(jsonPath("$.tokenType").value("Bearer"))
-        .andExpect(jsonPath("$.expiresIn").value(86400))
-        .andExpect(jsonPath("$.memberId").value(member.getId()))
-        .andReturn();
+                                               .contentType(MediaType.APPLICATION_JSON)
+                                               .content(loginJson("WashLife!123")))
+                              .andExpect(status().isOk())
+                              .andExpect(jsonPath("$.accessToken").isString())
+                              .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                              .andExpect(jsonPath("$.expiresIn").value(86400))
+                              .andExpect(jsonPath("$.memberId").value(member.getId()))
+                              .andReturn();
 
     String response = result.getResponse().getContentAsString();
     String token = response.substring(
-        response.indexOf("\"accessToken\":\"") + 15,
-        response.indexOf("\",\"tokenType\"")
+            response.indexOf("\"accessToken\":\"") + 15,
+            response.indexOf("\",\"tokenType\"")
     );
     String[] tokenParts = token.split("\\.");
     String payload = new String(
-        Base64.getUrlDecoder().decode(tokenParts[1]),
-        StandardCharsets.UTF_8
+            Base64.getUrlDecoder().decode(tokenParts[1]),
+            StandardCharsets.UTF_8
     );
     assertThat(payload).matches("\\{\"userId\":" + member.getId() + ",\"exp\":\\d+}");
     long expiresAt = Long.parseLong(
-        payload.substring(payload.indexOf("\"exp\":") + 6, payload.length() - 1)
+            payload.substring(payload.indexOf("\"exp\":") + 6, payload.length() - 1)
     );
     assertThat(expiresAt).isBetween(
-        issuedAfter + 86_400,
-        Instant.now().getEpochSecond() + 86_400
+            issuedAfter + 86_400,
+            Instant.now().getEpochSecond() + 86_400
     );
   }
 
   @Test
+  @DisplayName("비밀번호가 일치하지 않으면 로그인을 거절한다.")
   void loginRejectsInvalidCredentials() throws Exception {
     signup();
 
     mockMvc.perform(post("/auth/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(loginJson("wrong-password")))
-        .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(loginJson("wrong-password")))
+           .andExpect(status().isUnauthorized())
+           .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
   }
 
   @Test
+  @DisplayName("정지된 회원이 로그인하면 비활성 계정 오류를 반환한다.")
   void loginRejectsInactiveAccount() throws Exception {
     Member member = signup();
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", member.getId());
 
     mockMvc.perform(post("/auth/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(loginJson("WashLife!123")))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(loginJson("WashLife!123")))
+           .andExpect(status().isForbidden())
+           .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
   }
 
   @Test
+  @DisplayName("발급한 토큰으로 인증하면 요청에서 회원 식별자를 확인한다.")
   void bearerTokenProvidesMemberIdToAuthenticatedRequests() throws Exception {
     signup();
     MvcResult loginResult = mockMvc.perform(post("/auth/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(loginJson("WashLife!123")))
-        .andReturn();
+                                                    .contentType(MediaType.APPLICATION_JSON)
+                                                    .content(loginJson("WashLife!123")))
+                                   .andReturn();
     String response = loginResult.getResponse().getContentAsString();
     String token = response.substring(
-        response.indexOf("\"accessToken\":\"") + 15,
-        response.indexOf("\",\"tokenType\"")
+            response.indexOf("\"accessToken\":\"") + 15,
+            response.indexOf("\",\"tokenType\"")
     );
 
     mockMvc.perform(get("/test/members/me")
-            .header("Authorization", "Bearer " + token))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.memberId", greaterThan(0)));
+                            .header("Authorization", "Bearer " + token))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.memberId", greaterThan(0)));
   }
 
   private Member signup() throws Exception {
     mockMvc.perform(post("/auth/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(SIGNUP_REQUEST))
-        .andExpect(status().isCreated());
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(SIGNUP_REQUEST))
+           .andExpect(status().isCreated());
     return memberRepository.findByEmail("user@example.com").orElseThrow();
   }
 
   private String loginJson(String password) {
     return """
-        {
-          "email": "user@example.com",
-          "password": "%s"
-        }
-        """.formatted(password);
+            {
+              "email": "user@example.com",
+              "password": "%s"
+            }
+            """.formatted(password);
   }
 
   @RestController

@@ -20,7 +20,7 @@ public class AccessTokenProvider {
   private static final String HMAC_SHA_256 = "HmacSHA256";
   private static final String HEADER = encode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
   private static final Pattern PAYLOAD_PATTERN = Pattern.compile(
-      "\\{\"userId\":([1-9]\\d*),\"exp\":(\\d+)\\}"
+          "\\{\"userId\":([1-9]\\d*),\"exp\":(\\d+)\\}"
   );
 
   private final byte[] secret;
@@ -75,7 +75,7 @@ public class AccessTokenProvider {
       Mac mac = Mac.getInstance(HMAC_SHA_256);
       mac.init(new SecretKeySpec(secret, HMAC_SHA_256));
       return Base64.getUrlEncoder().withoutPadding().encodeToString(
-          mac.doFinal(value.getBytes(StandardCharsets.UTF_8))
+              mac.doFinal(value.getBytes(StandardCharsets.UTF_8))
       );
     } catch (GeneralSecurityException exception) {
       throw new IllegalStateException("Could not sign access token.", exception);
@@ -84,7 +84,7 @@ public class AccessTokenProvider {
 
   private static String encode(String value) {
     return Base64.getUrlEncoder().withoutPadding()
-        .encodeToString(value.getBytes(StandardCharsets.UTF_8));
+                 .encodeToString(value.getBytes(StandardCharsets.UTF_8));
   }
 
   private static byte[] decode(String value) {
