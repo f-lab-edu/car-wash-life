@@ -20,8 +20,10 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.experimental.FieldNameConstants;
 
 @Getter
+@FieldNameConstants(asEnum = true, onlyExplicitlyIncluded = true)
 @Entity
 @Table(name = "car_wash_history")
 public class CarWashHistory {
@@ -60,45 +62,58 @@ public class CarWashHistory {
   private OffsetDateTime submittedAt;
 
   @Column(nullable = false, updatable = false)
+  @FieldNameConstants.Include
   private String name;
 
   @Column(updatable = false)
+  @FieldNameConstants.Include
   private String address;
 
   @Column(nullable = false, updatable = false)
+  @FieldNameConstants.Include
   private double latitude;
 
   @Column(nullable = false, updatable = false)
+  @FieldNameConstants.Include
   private double longitude;
 
   @Column(updatable = false)
+  @FieldNameConstants.Include
   private Integer highPressureWaterPrice;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, updatable = false)
+  @FieldNameConstants.Include
   private FacilityAvailability foamLanceAvailability;
 
   @Column(updatable = false)
+  @FieldNameConstants.Include
   private Integer foamGunPrice;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, updatable = false)
+  @FieldNameConstants.Include
   private FacilityAvailability airGunAvailability;
 
   @Column(updatable = false)
+  @FieldNameConstants.Include
   private Integer airGunPrice;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, updatable = false)
+  @FieldNameConstants.Include
   private FacilityAvailability vacuumAvailability;
 
   @Column(updatable = false)
+  @FieldNameConstants.Include
   private Integer vacuumPrice;
 
   @Column(updatable = false)
+  @FieldNameConstants.Include
   private Integer washBayCount;
 
   @Column(updatable = false)
+  @FieldNameConstants.Include
   private Integer dryingBayCount;
 
   protected CarWashHistory() {
@@ -167,8 +182,8 @@ public class CarWashHistory {
     this.dryingBayCount = dryingBayCount;
     validateFacilityPrice(this.airGunAvailability, airGunPrice, "에어건");
     validateFacilityPrice(this.vacuumAvailability, vacuumPrice, "청소기");
-    Set<CarWashHistoryField> changedFields = EnumSet.noneOf(CarWashHistoryField.class);
-    for (CarWashHistoryField field : CarWashHistoryField.values()) {
+    Set<Fields> changedFields = EnumSet.noneOf(Fields.class);
+    for (Fields field : Fields.values()) {
       if (baseHistory == null || !Objects.equals(valueOf(field), baseHistory.valueOf(field))) {
         changedFields.add(field);
       }
@@ -180,18 +195,18 @@ public class CarWashHistory {
                                           .collect(Collectors.joining(","));
   }
 
-  public Set<CarWashHistoryField> getChangedFields() {
+  public Set<Fields> getChangedFields() {
     if (changedFieldNames == null || changedFieldNames.isBlank()) {
-      return Collections.unmodifiableSet(EnumSet.allOf(CarWashHistoryField.class));
+      return Collections.unmodifiableSet(EnumSet.allOf(Fields.class));
     }
-    Set<CarWashHistoryField> fields = EnumSet.noneOf(CarWashHistoryField.class);
+    Set<Fields> fields = EnumSet.noneOf(Fields.class);
     for (String fieldName : changedFieldNames.split(",")) {
-      fields.add(CarWashHistoryField.valueOf(fieldName));
+      fields.add(Fields.valueOf(fieldName));
     }
     return Collections.unmodifiableSet(fields);
   }
 
-  public CarWashHistory getSourceHistory(CarWashHistoryField field) {
+  public CarWashHistory getSourceHistory(Fields field) {
     Objects.requireNonNull(field, "정보 항목은 필수입니다.");
     CarWashHistory source = this;
     while (source.getBaseHistory() != null && !source.getChangedFields().contains(field)) {
@@ -200,7 +215,7 @@ public class CarWashHistory {
     return source;
   }
 
-  private Object valueOf(CarWashHistoryField field) {
+  private Object valueOf(Fields field) {
     return switch (field) {
       case NAME -> getName();
       case ADDRESS -> getAddress();

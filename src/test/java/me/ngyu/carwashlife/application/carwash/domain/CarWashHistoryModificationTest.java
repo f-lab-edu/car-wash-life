@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.OffsetDateTime;
 import java.util.EnumSet;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory.Fields;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -15,20 +16,29 @@ class CarWashHistoryModificationTest {
   private static final OffsetDateTime SUBMITTED_AT = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private final CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, SUBMITTED_AT);
 
+  @DisplayName("자동 생성한 변경 항목은 기존 저장 코드와 동일한 13개 정보 항목만 포함한다.")
+  @Test
+  void generatedFieldsKeepExistingCodesAndExcludeMetadata() {
+    assertThat(Fields.values()).extracting(Enum::name).containsExactly(
+            "NAME", "ADDRESS", "LATITUDE", "LONGITUDE", "HIGH_PRESSURE_WATER_PRICE",
+            "FOAM_LANCE_AVAILABILITY", "FOAM_GUN_PRICE", "AIR_GUN_AVAILABILITY", "AIR_GUN_PRICE",
+            "VACUUM_AVAILABILITY", "VACUUM_PRICE", "WASH_BAY_COUNT", "DRYING_BAY_COUNT");
+  }
+
   @DisplayName("최초 등록 이력은 전체 정보 항목의 원래 출처가 된다.")
   @Test
   void registrationIsTheOriginalSourceOfAllSnapshotFields() {
     CarWashHistory registration = registration();
 
     assertThat(registration.getBaseHistory()).isNull();
-    assertThat(registration.getChangedFields()).isEqualTo(EnumSet.allOf(CarWashHistoryField.class));
-    assertThat(registration.getSourceHistory(CarWashHistoryField.NAME)).isSameAs(registration);
+    assertThat(registration.getChangedFields()).isEqualTo(EnumSet.allOf(Fields.class));
+    assertThat(registration.getSourceHistory(Fields.NAME)).isSameAs(registration);
   }
 
   @DisplayName("정보 항목을 수정하면 실제 변경 항목만 기록하고 나머지 정보의 기존 출처를 유지한다.")
   @ParameterizedTest(name = "[{index}] {displayName}")
-  @EnumSource(CarWashHistoryField.class)
-  void eachSnapshotFieldIsComparedToTheBaseAndKeepsItsOwnSource(CarWashHistoryField field) {
+  @EnumSource(Fields.class)
+  void eachSnapshotFieldIsComparedToTheBaseAndKeepsItsOwnSource(Fields field) {
     CarWashHistory base = registration();
     var builder = modification(base);
     switch (field) {
@@ -51,7 +61,7 @@ class CarWashHistoryModificationTest {
     assertThat(next.getBaseHistory()).isSameAs(base);
     assertThat(next.getChangedFields()).containsExactly(field);
     assertThat(next.getSourceHistory(field)).isSameAs(next);
-    for (CarWashHistoryField unchanged : CarWashHistoryField.values()) {
+    for (Fields unchanged : Fields.values()) {
       if (unchanged != field) {
         assertThat(next.getSourceHistory(unchanged)).isSameAs(base);
       }
@@ -69,11 +79,11 @@ class CarWashHistoryModificationTest {
     CarWashHistory first = modification(base).highPressureWaterPrice(3500).build();
     CarWashHistory second = modification(first).highPressureWaterPrice(3500).name("새 이름").build();
 
-    assertThat(second.getChangedFields()).containsExactly(CarWashHistoryField.NAME);
-    assertThat(second.getSourceHistory(CarWashHistoryField.NAME)).isSameAs(second);
-    assertThat(second.getSourceHistory(CarWashHistoryField.HIGH_PRESSURE_WATER_PRICE)).isSameAs(first);
-    assertThat(second.getSourceHistory(CarWashHistoryField.LATITUDE)).isSameAs(base);
-    assertThat(second.getSourceHistory(CarWashHistoryField.LATITUDE).getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
+    assertThat(second.getChangedFields()).containsExactly(Fields.NAME);
+    assertThat(second.getSourceHistory(Fields.NAME)).isSameAs(second);
+    assertThat(second.getSourceHistory(Fields.HIGH_PRESSURE_WATER_PRICE)).isSameAs(first);
+    assertThat(second.getSourceHistory(Fields.LATITUDE)).isSameAs(base);
+    assertThat(second.getSourceHistory(Fields.LATITUDE).getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
   }
 
   @DisplayName("주소와 가격을 null로 바꾸면 정보 삭제를 실제 변경으로 기록한다.")
@@ -82,10 +92,10 @@ class CarWashHistoryModificationTest {
     CarWashHistory base = registration();
     CarWashHistory next = modification(base).address(null).highPressureWaterPrice(null).build();
 
-    assertThat(next.getChangedFields()).containsExactly(CarWashHistoryField.ADDRESS, CarWashHistoryField.HIGH_PRESSURE_WATER_PRICE);
+    assertThat(next.getChangedFields()).containsExactly(Fields.ADDRESS, Fields.HIGH_PRESSURE_WATER_PRICE);
     assertThat(next.getAddress()).isNull();
     assertThat(next.getHighPressureWaterPrice()).isNull();
-    assertThat(next.getSourceHistory(CarWashHistoryField.ADDRESS)).isSameAs(next);
+    assertThat(next.getSourceHistory(Fields.ADDRESS)).isSameAs(next);
   }
 
   @DisplayName("세차장 정보 변경 없이 제보 메타데이터만 바꾸면 수정 이력 생성을 거절한다.")

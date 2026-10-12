@@ -9,7 +9,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.time.OffsetDateTime;
 import java.util.Set;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryField;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory.Fields;
 import me.ngyu.carwashlife.application.carwash.domain.FacilityAvailability;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 
@@ -44,7 +44,7 @@ public class ModifyCarWashDto {
   public record Response(Long carWashId,
                          Long historyId,
                          Long baseHistoryId,
-                         Set<CarWashHistoryField> changedFields,
+                         Set<Fields> changedFields,
                          int confidence,
                          OffsetDateTime submittedAt) {
 
