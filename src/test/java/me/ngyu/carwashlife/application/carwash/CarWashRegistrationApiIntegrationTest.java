@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -46,21 +47,23 @@ class CarWashRegistrationApiIntegrationTest {
           OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private static final String REQUEST = """
           {
-            "name": "세차생활",
-            "address": "서울시 강남구",
-            "latitude": 37.5,
-            "longitude": 127.0,
             "visitExperience": "USED",
             "observedAt": "2026-10-06T12:00:00+09:00",
-            "highPressureWaterPrice": 3000,
-            "foamLanceAvailability": "AVAILABLE",
-            "foamGunPrice": 4000,
-            "airGunAvailability": "AVAILABLE",
-            "airGunPrice": 0,
-            "vacuumAvailability": "AVAILABLE",
-            "vacuumPrice": 1000,
-            "washBayCount": 6,
-            "dryingBayCount": 10
+            "information": {
+              "name": "세차생활",
+              "address": "서울시 강남구",
+              "latitude": 37.5,
+              "longitude": 127.0,
+              "highPressureWaterPrice": 3000,
+              "foamLanceAvailability": "AVAILABLE",
+              "foamGunPrice": 4000,
+              "airGunAvailability": "AVAILABLE",
+              "airGunPrice": 0,
+              "vacuumAvailability": "AVAILABLE",
+              "vacuumPrice": 1000,
+              "washBayCount": 6,
+              "dryingBayCount": 10
+            }
           }
           """;
 
@@ -143,8 +146,8 @@ class CarWashRegistrationApiIntegrationTest {
                             .header("Authorization", "Bearer " + token)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
-                                             {"name":"세차생활","latitude":37.5,"longitude":127.0,
-                                              "visitExperience":"NOT_USED","observedAt":"2026-10-06T12:00:00+09:00"}
+                                             {"visitExperience":"NOT_USED","observedAt":"2026-10-06T12:00:00+09:00",
+                                              "information":{"name":"세차생활","latitude":37.5,"longitude":127.0}}
                                              """))
            .andExpect(status().isCreated())
            .andExpect(jsonPath("$.confidence").value(2));
@@ -188,6 +191,21 @@ class CarWashRegistrationApiIntegrationTest {
     assertThat(historyRepository.count()).isZero();
   }
 
+  @DisplayName("등록 요청의 상세정보가 생략되거나 null이면 원장과 이력을 저장하지 않고 거절한다.")
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @ValueSource(strings = {"", "null"})
+  void missingOrNullInformationCannotRegister(String information) throws Exception {
+    String request = "{\"visitExperience\":\"USED\",\"observedAt\":\"2026-10-06T12:00:00+09:00\""
+            + (information.isEmpty() ? "" : ",\"information\":null") + "}";
+
+    mockMvc.perform(post("/car-washes").header("Authorization", "Bearer " + token)
+                                       .contentType(MediaType.APPLICATION_JSON).content(request))
+           .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+    assertThat(carWashRepository.count()).isZero();
+    assertThat(historyRepository.count()).isZero();
+  }
+
   static Stream<Arguments> invalidRequests() {
     return Stream.of(
             Arguments.of("blank name", REQUEST.replace("세차생활", " ")),
@@ -213,9 +231,9 @@ class CarWashRegistrationApiIntegrationTest {
     );
   }
 
-  @DisplayName("사용 불가 시설에 가격을 입력하면 등록을 거절하고 먼저 저장한 원장도 롤백한다.")
+  @DisplayName("사용 불가 시설에 가격을 입력하면 원장과 이력을 저장하지 않고 등록을 거절한다.")
   @Test
-  void contradictoryFacilityPriceRollsBackTheAlreadySavedMaster() throws Exception {
+  void contradictoryFacilityPriceRejectsRegistrationWithoutSaving() throws Exception {
     mockMvc.perform(post("/car-washes")
                             .header("Authorization", "Bearer " + token)
                             .contentType(MediaType.APPLICATION_JSON)

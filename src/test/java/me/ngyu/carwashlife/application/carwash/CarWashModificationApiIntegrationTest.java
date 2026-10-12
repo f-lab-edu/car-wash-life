@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -41,9 +42,9 @@ class CarWashModificationApiIntegrationTest {
 
   private static final OffsetDateTime SUBMITTED_AT = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private static final String SNAPSHOT = """
-          {"name":"세차생활","address":"서울시","latitude":37.5,"longitude":127.0,
-           "visitExperience":"NOT_USED","observedAt":"2026-06-29T12:00:00+09:00",
-           "highPressureWaterPrice":3000}
+          {"visitExperience":"NOT_USED","observedAt":"2026-06-29T12:00:00+09:00",
+           "information":{"name":"세차생활","address":"서울시","latitude":37.5,"longitude":127.0,
+                          "highPressureWaterPrice":3000}}
           """;
 
   @Autowired
@@ -320,6 +321,23 @@ class CarWashModificationApiIntegrationTest {
     assertThat(carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId()).isEqualTo(baseHistoryId);
   }
 
+  @DisplayName("수정 요청의 상세정보가 생략되거나 null이면 기존 원장과 이력을 보존하고 거절한다.")
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @ValueSource(strings = {"", "null"})
+  void missingOrNullInformationCannotModify(String information) throws Exception {
+    String request = "{\"baseHistoryId\":" + baseHistoryId
+            + ",\"visitExperience\":\"USED\",\"observedAt\":\"2026-10-06T12:00:00+09:00\""
+            + (information.isEmpty() ? "" : ",\"information\":null") + "}";
+
+    mockMvc.perform(post("/car-washes/{id}/histories", carWashId).header("Authorization", "Bearer " + token)
+                                                                 .contentType(MediaType.APPLICATION_JSON).content(request))
+           .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+    assertThat(historyRepository.count()).isEqualTo(1);
+    assertThat(carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId()).isEqualTo(baseHistoryId);
+    assertThat(historyRepository.findById(baseHistoryId).orElseThrow().getHighPressureWaterPrice()).isEqualTo(3000);
+  }
+
   static Stream<Arguments> invalidFields() {
     return Stream.of(
             Arguments.of("missing base", "\"baseHistoryId\":", "\"ignoredBase\":"),
@@ -387,7 +405,7 @@ class CarWashModificationApiIntegrationTest {
   }
 
   private String modification(Long baseId, int price) {
-    return SNAPSHOT.replace("{", "{\"baseHistoryId\":" + baseId + ",")
+    return SNAPSHOT.replaceFirst("\\{", "{\"baseHistoryId\":" + baseId + ",")
                    .replace("\"NOT_USED\"", "\"USED\"")
                    .replace("2026-06-29", "2026-10-06")
                    .replace("\"highPressureWaterPrice\":3000", "\"highPressureWaterPrice\":" + price);

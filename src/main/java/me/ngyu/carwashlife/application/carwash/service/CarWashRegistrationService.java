@@ -7,7 +7,7 @@ import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashConfidencePolicy;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryType;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -40,31 +40,13 @@ public class CarWashRegistrationService {
 
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
     try {
+      CarWashInformation information = request.information().toDomain();
       int confidence = confidencePolicy.evaluate(
               request.visitExperience(), request.observedAt(), false, submittedAt);
       CarWash carWash = carWashRepository.save(CarWash.create(
-              request.name(), request.latitude(), request.longitude(), submittedAt));
-      CarWashHistory history = historyRepository.save(CarWashHistory.builder()
-                                                                    .carWash(carWash)
-                                                                    .memberId(member.getId())
-                                                                    .type(CarWashHistoryType.REGISTRATION)
-                                                                    .visitExperience(request.visitExperience())
-                                                                    .observedAt(request.observedAt())
-                                                                    .submittedAt(submittedAt)
-                                                                    .name(request.name())
-                                                                    .address(request.address())
-                                                                    .latitude(request.latitude())
-                                                                    .longitude(request.longitude())
-                                                                    .highPressureWaterPrice(request.highPressureWaterPrice())
-                                                                    .foamLanceAvailability(request.foamLanceAvailability())
-                                                                    .foamGunPrice(request.foamGunPrice())
-                                                                    .airGunAvailability(request.airGunAvailability())
-                                                                    .airGunPrice(request.airGunPrice())
-                                                                    .vacuumAvailability(request.vacuumAvailability())
-                                                                    .vacuumPrice(request.vacuumPrice())
-                                                                    .washBayCount(request.washBayCount())
-                                                                    .dryingBayCount(request.dryingBayCount())
-                                                                    .build());
+              information.name(), information.latitude(), information.longitude(), submittedAt));
+      CarWashHistory history = historyRepository.save(CarWashHistory.register(
+              carWash, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information));
       carWash.selectRepresentativeHistory(history, submittedAt);
       return new RegisterCarWashDto.Response(
               carWash.getId(), history.getId(), confidence, submittedAt);

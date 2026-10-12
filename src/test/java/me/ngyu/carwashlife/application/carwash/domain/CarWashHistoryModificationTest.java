@@ -40,24 +40,26 @@ class CarWashHistoryModificationTest {
   @EnumSource(Fields.class)
   void eachSnapshotFieldIsComparedToTheBaseAndKeepsItsOwnSource(Fields field) {
     CarWashHistory base = registration();
-    var builder = modification(base);
+    var information = information();
     switch (field) {
-      case NAME -> builder.name("수정한 세차생활");
-      case ADDRESS -> builder.address("서울시 강남구");
-      case LATITUDE -> builder.latitude(37.6);
-      case LONGITUDE -> builder.longitude(127.1);
-      case HIGH_PRESSURE_WATER_PRICE -> builder.highPressureWaterPrice(3500);
-      case FOAM_LANCE_AVAILABILITY -> builder.foamLanceAvailability(FacilityAvailability.AVAILABLE);
-      case FOAM_GUN_PRICE -> builder.foamGunPrice(4000);
-      case AIR_GUN_AVAILABILITY -> builder.airGunAvailability(FacilityAvailability.AVAILABLE);
-      case AIR_GUN_PRICE -> builder.airGunPrice(1000);
-      case VACUUM_AVAILABILITY -> builder.vacuumAvailability(FacilityAvailability.AVAILABLE);
-      case VACUUM_PRICE -> builder.vacuumPrice(1000);
-      case WASH_BAY_COUNT -> builder.washBayCount(6);
-      case DRYING_BAY_COUNT -> builder.dryingBayCount(10);
+      case NAME -> information.name("수정한 세차생활");
+      case ADDRESS -> information.address("서울시 강남구");
+      case LATITUDE -> information.latitude(37.6);
+      case LONGITUDE -> information.longitude(127.1);
+      case HIGH_PRESSURE_WATER_PRICE -> information.highPressureWaterPrice(3500);
+      case FOAM_LANCE_AVAILABILITY -> information.foamLanceAvailability(FacilityAvailability.AVAILABLE);
+      case FOAM_GUN_PRICE -> information.foamGunPrice(4000);
+      case AIR_GUN_AVAILABILITY -> information.airGunAvailability(FacilityAvailability.AVAILABLE);
+      case AIR_GUN_PRICE -> information.airGunPrice(1000);
+      case VACUUM_AVAILABILITY -> information.vacuumAvailability(FacilityAvailability.AVAILABLE);
+      case VACUUM_PRICE -> information.vacuumPrice(1000);
+      case WASH_BAY_COUNT -> information.washBayCount(6);
+      case DRYING_BAY_COUNT -> information.dryingBayCount(10);
     }
-    CarWashHistory next = builder.build();
+    CarWashHistory next = CarWashHistory.modify(carWash, base, 2L, VisitExperience.USED,
+                                                SUBMITTED_AT, SUBMITTED_AT, information.build());
 
+    assertThat(next.getType()).isEqualTo(CarWashHistoryType.MODIFICATION);
     assertThat(next.getBaseHistory()).isSameAs(base);
     assertThat(next.getChangedFields()).containsExactly(field);
     assertThat(next.getSourceHistory(field)).isSameAs(next);
@@ -76,8 +78,8 @@ class CarWashHistoryModificationTest {
   @Test
   void unchangedFieldsKeepTheOriginalObservationAcrossMultipleModifications() {
     CarWashHistory base = registration();
-    CarWashHistory first = modification(base).highPressureWaterPrice(3500).build();
-    CarWashHistory second = modification(first).highPressureWaterPrice(3500).name("새 이름").build();
+    CarWashHistory first = modification(base, "세차생활", "서울시", 3500);
+    CarWashHistory second = modification(first, "새 이름", "서울시", 3500);
 
     assertThat(second.getChangedFields()).containsExactly(Fields.NAME);
     assertThat(second.getSourceHistory(Fields.NAME)).isSameAs(second);
@@ -90,7 +92,7 @@ class CarWashHistoryModificationTest {
   @Test
   void explicitlyClearingNullableInformationIsAChange() {
     CarWashHistory base = registration();
-    CarWashHistory next = modification(base).address(null).highPressureWaterPrice(null).build();
+    CarWashHistory next = modification(base, "세차생활", null, null);
 
     assertThat(next.getChangedFields()).containsExactly(Fields.ADDRESS, Fields.HIGH_PRESSURE_WATER_PRICE);
     assertThat(next.getAddress()).isNull();
@@ -101,30 +103,30 @@ class CarWashHistoryModificationTest {
   @DisplayName("세차장 정보 변경 없이 제보 메타데이터만 바꾸면 수정 이력 생성을 거절한다.")
   @Test
   void metadataAloneCannotCreateAModification() {
-    assertThatThrownBy(() -> modification(registration()).build()).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> modification(registration(), "세차생활", "서울시", 3000)).isInstanceOf(IllegalArgumentException.class);
   }
 
   @DisplayName("외부에서 수정 이력의 변경 항목 목록을 변경하지 못하게 한다.")
   @Test
   void changedFieldsCannotBeModifiedByTheCaller() {
-    CarWashHistory next = modification(registration()).name("새 이름").build();
+    CarWashHistory next = modification(registration(), "새 이름", "서울시", 3000);
 
     assertThatThrownBy(() -> next.getChangedFields().clear()).isInstanceOf(UnsupportedOperationException.class);
   }
 
-  @DisplayName("최초 등록에 기준 이력을 지정하면 이력 생성을 거절한다.")
+  @DisplayName("등록 팩터리는 기준 이력 없이 최초 등록 유형의 이력을 생성한다.")
   @Test
-  void registrationCannotReferenceABaseHistory() {
-    CarWashHistory base = registration();
+  void registrationFactoryCreatesRegistrationWithoutABaseHistory() {
+    CarWashHistory history = registration();
 
-    assertThatThrownBy(() -> modification(base).type(CarWashHistoryType.REGISTRATION).name("새 이름").build())
-            .isInstanceOf(IllegalArgumentException.class);
+    assertThat(history.getType()).isEqualTo(CarWashHistoryType.REGISTRATION);
+    assertThat(history.getBaseHistory()).isNull();
   }
 
   @DisplayName("수정 요청에 기준 이력이 없으면 이력 생성을 거절한다.")
   @Test
   void modificationRequiresABaseHistory() {
-    assertThatThrownBy(() -> modification(registration()).baseHistory(null).name("새 이름").build())
+    assertThatThrownBy(() -> modification(null, "새 이름", "서울시", 3000))
             .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -133,39 +135,43 @@ class CarWashHistoryModificationTest {
   void modificationCannotReferenceAnotherCarWash() {
     CarWash other = CarWash.create("다른 세차장", 37.5, 127.0, SUBMITTED_AT);
 
-    assertThatThrownBy(() -> modification(registration()).carWash(other).name("새 이름").build())
+    assertThatThrownBy(() -> CarWashHistory.modify(other, registration(), 2L, VisitExperience.USED, SUBMITTED_AT, SUBMITTED_AT,
+                                                   information()
+                                                           .name("새 이름").build()))
             .isInstanceOf(IllegalArgumentException.class);
   }
 
-  private CarWashHistory registration() {
-    return CarWashHistory.builder()
-                         .carWash(carWash)
-                         .memberId(1L)
-                         .type(CarWashHistoryType.REGISTRATION)
-                         .visitExperience(VisitExperience.NOT_USED)
-                         .observedAt(SUBMITTED_AT.minusDays(100))
-                         .submittedAt(SUBMITTED_AT)
-                         .name("세차생활")
-                         .address("서울시")
-                         .latitude(37.5)
-                         .longitude(127.0)
-                         .highPressureWaterPrice(3000)
-                         .build();
+  @DisplayName("수정 요청의 상세정보가 없으면 이력 생성을 거절한다.")
+  @Test
+  void modificationRequiresInformation() {
+    assertThatThrownBy(() -> CarWashHistory.modify(carWash, registration(), 2L, VisitExperience.USED,
+                                                   SUBMITTED_AT, SUBMITTED_AT, null))
+            .isInstanceOf(NullPointerException.class);
   }
 
-  private CarWashHistory.CarWashHistoryBuilder modification(CarWashHistory base) {
-    return CarWashHistory.builder()
-                         .carWash(carWash)
-                         .baseHistory(base)
-                         .memberId(2L)
-                         .type(CarWashHistoryType.MODIFICATION)
-                         .visitExperience(VisitExperience.USED)
-                         .observedAt(SUBMITTED_AT)
-                         .submittedAt(SUBMITTED_AT)
-                         .name("세차생활")
-                         .address("서울시")
-                         .latitude(37.5)
-                         .longitude(127.0)
-                         .highPressureWaterPrice(3000);
+  private CarWashHistory registration() {
+    return CarWashHistory.register(carWash, 1L, VisitExperience.NOT_USED, SUBMITTED_AT.minusDays(100), SUBMITTED_AT,
+                                   information().build());
   }
+
+  private CarWashHistory modification(CarWashHistory base,
+                                      String name,
+                                      String address,
+                                      Integer highPressureWaterPrice) {
+    return CarWashHistory.modify(carWash, base, 2L, VisitExperience.USED, SUBMITTED_AT, SUBMITTED_AT,
+                                 information()
+                                         .name(name)
+                                         .address(address)
+                                         .highPressureWaterPrice(highPressureWaterPrice).build());
+  }
+
+  private CarWashInformation.CarWashInformationBuilder information() {
+    return CarWashInformation.builder()
+                             .name("세차생활")
+                             .address("서울시")
+                             .latitude(37.5)
+                             .longitude(127.0)
+                             .highPressureWaterPrice(3000);
+  }
+
 }

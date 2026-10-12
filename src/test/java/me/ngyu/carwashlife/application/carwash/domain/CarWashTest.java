@@ -28,17 +28,12 @@ class CarWashTest {
   @Test
   void selectingHistoryUpdatesRepresentativeNameAndCoordinatesTogether() {
     CarWash carWash = CarWash.create("기존 이름", 37.5, 127.0, CREATED_AT);
-    CarWashHistory history = CarWashHistory.builder()
-                                           .carWash(carWash)
-                                           .memberId(1L)
-                                           .type(CarWashHistoryType.REGISTRATION)
-                                           .visitExperience(VisitExperience.NOT_USED)
-                                           .observedAt(CREATED_AT)
-                                           .submittedAt(CREATED_AT)
-                                           .name("변경된 이름")
-                                           .latitude(37.6)
-                                           .longitude(127.1)
-                                           .build();
+    CarWashHistory history = CarWashHistory.register(carWash, 1L, VisitExperience.NOT_USED, CREATED_AT, CREATED_AT,
+                                                     CarWashInformation.builder()
+                                                                       .name("변경된 이름")
+                                                                       .latitude(37.6)
+                                                                       .longitude(127.1)
+                                                                       .build());
     OffsetDateTime selectedAt = CREATED_AT.plusMinutes(1);
 
     carWash.selectRepresentativeHistory(history, selectedAt);
@@ -86,18 +81,12 @@ class CarWashTest {
     CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, CREATED_AT);
     CarWashHistory previousHistory = historyOf(carWash);
     carWash.selectRepresentativeHistory(previousHistory, CREATED_AT);
-    CarWashHistory newHistory = CarWashHistory.builder()
-                                              .carWash(carWash)
-                                              .baseHistory(previousHistory)
-                                              .memberId(2L)
-                                              .type(CarWashHistoryType.MODIFICATION)
-                                              .visitExperience(VisitExperience.USED)
-                                              .observedAt(CREATED_AT.plusHours(1))
-                                              .submittedAt(CREATED_AT.plusHours(1))
-                                              .name("수정한 이름")
-                                              .latitude(37.6)
-                                              .longitude(127.1)
-                                              .build();
+    CarWashHistory newHistory = CarWashHistory.modify(carWash, previousHistory, 2L, VisitExperience.USED, CREATED_AT.plusHours(1), CREATED_AT.plusHours(1),
+                                                      CarWashInformation.builder()
+                                                                        .name("수정한 이름")
+                                                                        .latitude(37.6)
+                                                                        .longitude(127.1)
+                                                                        .build());
 
     carWash.selectRepresentativeHistory(newHistory, CREATED_AT.plusHours(1));
 
@@ -143,16 +132,11 @@ class CarWashTest {
   }
 
   private CarWashHistory historyOf(CarWash carWash) {
-    return CarWashHistory.builder()
-                         .carWash(carWash)
-                         .memberId(1L)
-                         .type(CarWashHistoryType.REGISTRATION)
-                         .visitExperience(VisitExperience.NOT_USED)
-                         .observedAt(CREATED_AT)
-                         .submittedAt(CREATED_AT)
-                         .name("세차생활")
-                         .latitude(37.5)
-                         .longitude(127.0)
-                         .build();
+    return CarWashHistory.register(carWash, 1L, VisitExperience.NOT_USED, CREATED_AT, CREATED_AT,
+                                   CarWashInformation.builder()
+                                                     .name("세차생활")
+                                                     .latitude(37.5)
+                                                     .longitude(127.0)
+                                                     .build());
   }
 }
