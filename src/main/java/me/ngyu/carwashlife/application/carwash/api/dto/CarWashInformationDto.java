@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
+import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.carwash.domain.FacilityAvailability;
 
 public class CarWashInformationDto {
@@ -29,7 +30,7 @@ public class CarWashInformationDto {
                         @PositiveOrZero Integer dryingBayCount) {
 
     public CarWashInformation toDomain() {
-      return new CarWashInformation(name, address, latitude, longitude, highPressureWaterPrice,
+      return new CarWashInformation(name, address, new Coordinates(latitude, longitude), highPressureWaterPrice,
                                     foamLanceAvailability, foamGunPrice, airGunAvailability, airGunPrice,
                                     vacuumAvailability, vacuumPrice, washBayCount, dryingBayCount);
     }

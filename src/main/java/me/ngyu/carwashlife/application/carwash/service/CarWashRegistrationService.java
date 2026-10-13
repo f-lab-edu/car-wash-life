@@ -44,7 +44,7 @@ public class CarWashRegistrationService {
       int confidence = confidencePolicy.evaluate(
               request.visitExperience(), request.observedAt(), false, submittedAt);
       CarWash carWash = carWashRepository.save(CarWash.create(
-              information.name(), information.latitude(), information.longitude(), submittedAt));
+              information.name(), information.coordinates(), submittedAt));
       CarWashHistory history = historyRepository.save(CarWashHistory.register(
               carWash, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information));
       carWash.selectRepresentativeHistory(history, submittedAt);

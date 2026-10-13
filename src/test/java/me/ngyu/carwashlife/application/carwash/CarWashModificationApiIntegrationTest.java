@@ -100,6 +100,40 @@ class CarWashModificationApiIntegrationTest {
     assertThat(history.getChangedFields()).containsExactly(Fields.NAME, Fields.HIGH_PRESSURE_WATER_PRICE);
   }
 
+  @DisplayName("기존 위도 또는 경도 변경 기록은 좌표 전체의 변경으로 복원하고 이후 수정에도 해당 출처를 유지한다.")
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @ValueSource(strings = {"LATITUDE", "LONGITUDE", "LATITUDE,LONGITUDE"})
+  void legacyAxisChangesRemainTheSourceOfTheCoordinatePair(String legacyFields) throws Exception {
+    mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(modification(baseHistoryId, 3000).replace("37.5", "37.6")))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.changedFields[0]").value("COORDINATES"))
+           .andExpect(jsonPath("$.changedFields.length()").value(1));
+    Long coordinateHistoryId = modificationHistory().getId();
+    jdbcTemplate.update("update car_wash_history set changed_field_names = ? where id = ?", legacyFields, coordinateHistoryId);
+
+    mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(modification(coordinateHistoryId, 3500).replace("37.5", "37.6")))
+           .andExpect(status().isCreated());
+
+    new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+      CarWashHistory legacy = historyRepository.findById(coordinateHistoryId).orElseThrow();
+      assertThat(legacy.getChangedFields()).containsExactly(Fields.COORDINATES);
+      CarWashHistory latest = historyRepository.findAll().stream()
+                                               .filter(history -> history.getBaseHistory() != null
+                                                       && history.getBaseHistory().getId().equals(coordinateHistoryId))
+                                               .findFirst().orElseThrow();
+      CarWashHistory source = latest.getSourceHistory(Fields.COORDINATES);
+      assertThat(source.getId()).isEqualTo(coordinateHistoryId);
+      assertThat(source.getLatitude()).isEqualTo(37.6);
+      assertThat(source.getLongitude()).isEqualTo(127.0);
+    });
+  }
+
   @DisplayName("수정 요청은 새 이력을 추가하고 기존 이력과 대표 정보를 보존한다.")
   @Test
   void modificationAppendsASnapshotAndPreservesTheOriginalAndRepresentative() throws Exception {
@@ -185,7 +219,7 @@ class CarWashModificationApiIntegrationTest {
                                                .findFirst().orElseThrow();
       assertThat(latest.getSourceHistory(Fields.NAME).getId()).isEqualTo(latest.getId());
       assertThat(latest.getSourceHistory(Fields.HIGH_PRESSURE_WATER_PRICE).getId()).isEqualTo(firstModificationId);
-      CarWashHistory original = latest.getSourceHistory(Fields.LATITUDE);
+      CarWashHistory original = latest.getSourceHistory(Fields.COORDINATES);
       assertThat(original.getId()).isEqualTo(baseHistoryId);
       assertThat(original.getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
       assertThat(original.getVisitExperience()).isEqualTo(VisitExperience.NOT_USED);
@@ -208,7 +242,7 @@ class CarWashModificationApiIntegrationTest {
       assertThat(legacy.getChangedFields()).isEqualTo(EnumSet.allOf(Fields.class));
       CarWashHistory next = historyRepository.findById(modificationId).orElseThrow();
       assertThat(next.getChangedFields()).containsExactly(Fields.HIGH_PRESSURE_WATER_PRICE);
-      assertThat(next.getSourceHistory(Fields.LATITUDE).getId()).isEqualTo(baseHistoryId);
+      assertThat(next.getSourceHistory(Fields.COORDINATES).getId()).isEqualTo(baseHistoryId);
       assertThat(next.getSourceHistory(Fields.HIGH_PRESSURE_WATER_PRICE).getId()).isEqualTo(modificationId);
     });
   }

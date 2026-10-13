@@ -1,6 +1,9 @@
 package me.ngyu.carwashlife.application.carwash.domain;
 
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -68,13 +71,13 @@ public class CarWashHistory {
   @FieldNameConstants.Include
   private String address;
 
-  @Column(nullable = false, updatable = false)
+  @Embedded
+  @AttributeOverrides({
+          @AttributeOverride(name = "latitude", column = @Column(name = "latitude", nullable = false, updatable = false)),
+          @AttributeOverride(name = "longitude", column = @Column(name = "longitude", nullable = false, updatable = false))
+  })
   @FieldNameConstants.Include
-  private double latitude;
-
-  @Column(nullable = false, updatable = false)
-  @FieldNameConstants.Include
-  private double longitude;
+  private Coordinates coordinates;
 
   @Column(updatable = false)
   @FieldNameConstants.Include
@@ -168,8 +171,7 @@ public class CarWashHistory {
     Objects.requireNonNull(information, "세차장 상세정보는 필수입니다.");
     this.name = information.name();
     this.address = information.address();
-    this.latitude = information.latitude();
-    this.longitude = information.longitude();
+    this.coordinates = information.coordinates();
     this.highPressureWaterPrice = information.highPressureWaterPrice();
     this.foamLanceAvailability = information.foamLanceAvailability();
     this.foamGunPrice = information.foamGunPrice();
@@ -196,6 +198,14 @@ public class CarWashHistory {
   protected CarWashHistory() {
   }
 
+  public double getLatitude() {
+    return coordinates.getLatitude();
+  }
+
+  public double getLongitude() {
+    return coordinates.getLongitude();
+  }
+
   boolean belongsTo(CarWash carWash) {
     return this.carWash == carWash || (this.carWash.getId() != null && this.carWash.getId().equals(carWash.getId()));
   }
@@ -204,8 +214,7 @@ public class CarWashHistory {
     return switch (field) {
       case NAME -> getName();
       case ADDRESS -> getAddress();
-      case LATITUDE -> getLatitude();
-      case LONGITUDE -> getLongitude();
+      case COORDINATES -> getCoordinates();
       case HIGH_PRESSURE_WATER_PRICE -> getHighPressureWaterPrice();
       case FOAM_LANCE_AVAILABILITY -> getFoamLanceAvailability();
       case FOAM_GUN_PRICE -> getFoamGunPrice();
@@ -233,7 +242,10 @@ public class CarWashHistory {
     }
     Set<Fields> fields = EnumSet.noneOf(Fields.class);
     for (String fieldName : changedFieldNames.split(",")) {
-      fields.add(Fields.valueOf(fieldName));
+      fields.add(switch (fieldName) {
+        case "LATITUDE", "LONGITUDE" -> Fields.COORDINATES;
+        default -> Fields.valueOf(fieldName);
+      });
     }
     return Collections.unmodifiableSet(fields);
   }

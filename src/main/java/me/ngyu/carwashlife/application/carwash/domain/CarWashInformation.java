@@ -5,8 +5,7 @@ import lombok.Builder;
 @Builder
 public record CarWashInformation(String name,
                                  String address,
-                                 Double latitude,
-                                 Double longitude,
+                                 Coordinates coordinates,
                                  Integer highPressureWaterPrice,
                                  FacilityAvailability foamLanceAvailability,
                                  Integer foamGunPrice,
@@ -18,7 +17,10 @@ public record CarWashInformation(String name,
                                  Integer dryingBayCount) {
 
   public CarWashInformation {
-    validateLocation(name, latitude, longitude);
+    validateName(name);
+    if (coordinates == null) {
+      throw new IllegalArgumentException("좌표는 필수입니다.");
+    }
     validateNonNegative(highPressureWaterPrice, "고압수 가격");
     validateNonNegative(foamGunPrice, "폼건 가격");
     validateNonNegative(airGunPrice, "에어건 가격");
@@ -36,15 +38,9 @@ public record CarWashInformation(String name,
     return availability == null ? FacilityAvailability.UNKNOWN : availability;
   }
 
-  private static void validateLocation(String name, Double latitude, Double longitude) {
+  private static void validateName(String name) {
     if (name == null || name.isBlank()) {
       throw new IllegalArgumentException("세차장 이름은 필수입니다.");
-    }
-    if (latitude == null || !Double.isFinite(latitude) || latitude < -90 || latitude > 90) {
-      throw new IllegalArgumentException("위도는 -90부터 90 사이여야 합니다.");
-    }
-    if (longitude == null || !Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      throw new IllegalArgumentException("경도는 -180부터 180 사이여야 합니다.");
     }
   }
 

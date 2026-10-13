@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
+import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.carwash.domain.FacilityAvailability;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 import org.junit.jupiter.api.DisplayName;
@@ -26,14 +27,13 @@ class CarWashPersistenceIntegrationTest {
   @Test
   void changingRepresentativeHistoryPersistsNewMasterInformationAndPreservesOldSnapshot() {
     OffsetDateTime submittedAt = OffsetDateTime.parse("2026-10-05T10:00:00+09:00");
-    CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, submittedAt);
+    CarWash carWash = CarWash.create("세차생활", new Coordinates(37.5, 127.0), submittedAt);
     entityManager.persist(carWash);
     CarWashHistory firstHistory = CarWashHistory.register(carWash, 1L, VisitExperience.NOT_USED, submittedAt, submittedAt,
                                                           CarWashInformation.builder()
                                                                             .name("세차생활")
                                                                             .address("서울시")
-                                                                            .latitude(37.5)
-                                                                            .longitude(127.0)
+                                                                            .coordinates(new Coordinates(37.5, 127.0))
                                                                             .build());
     entityManager.persist(firstHistory);
     carWash.selectRepresentativeHistory(firstHistory, submittedAt);
@@ -42,8 +42,7 @@ class CarWashPersistenceIntegrationTest {
                                                        CarWashInformation.builder()
                                                                          .name("수정한 세차생활")
                                                                          .address("서울시")
-                                                                         .latitude(37.6)
-                                                                         .longitude(127.1)
+                                                                         .coordinates(new Coordinates(37.6, 127.1))
                                                                          .highPressureWaterPrice(3000)
                                                                          .foamLanceAvailability(FacilityAvailability.AVAILABLE)
                                                                          .airGunAvailability(FacilityAvailability.AVAILABLE)
@@ -60,15 +59,25 @@ class CarWashPersistenceIntegrationTest {
     CarWash reloaded = entityManager.find(CarWash.class, carWash.getId());
     assertThat(reloaded.getTargetHistory().getId()).isEqualTo(nextHistory.getId());
     assertThat(reloaded.getName()).isEqualTo("수정한 세차생활");
+    assertThat(reloaded.getCoordinates()).isEqualTo(new Coordinates(37.6, 127.1));
+    assertThat(reloaded.getTargetHistory().getCoordinates()).isEqualTo(reloaded.getCoordinates());
     assertThat(reloaded.getLatitude()).isEqualTo(37.6);
     assertThat(reloaded.getLongitude()).isEqualTo(127.1);
     assertThat(reloaded.getUpdatedAt()).isEqualTo(submittedAt.plusHours(1));
     assertThat(reloaded.getTargetHistory().getHighPressureWaterPrice()).isEqualTo(3000);
     assertThat(reloaded.getTargetHistory().getAirGunPrice()).isZero();
     assertThat(reloaded.getTargetHistory().getWashBayCount()).isEqualTo(6);
+    Object[] masterCoordinates = (Object[]) entityManager.createNativeQuery("select latitude, longitude from car_wash where id = :id")
+                                                         .setParameter("id", carWash.getId()).getSingleResult();
+    Object[] historyCoordinates = (Object[]) entityManager.createNativeQuery("select latitude, longitude from car_wash_history where id = :id")
+                                                          .setParameter("id", firstHistory.getId()).getSingleResult();
+    assertThat(masterCoordinates).containsExactly(37.6, 127.1);
+    assertThat(historyCoordinates).containsExactly(37.5, 127.0);
     CarWashHistory previous = entityManager.find(CarWashHistory.class, firstHistory.getId());
     assertThat(previous.getName()).isEqualTo("세차생활");
+    assertThat(previous.getCoordinates()).isEqualTo(new Coordinates(37.5, 127.0));
     assertThat(previous.getLatitude()).isEqualTo(37.5);
+    assertThat(previous.getLongitude()).isEqualTo(127.0);
     assertThat(previous.getHighPressureWaterPrice()).isNull();
     assertThat(previous.getFoamLanceAvailability()).isEqualTo(FacilityAvailability.UNKNOWN);
     assertThat(previous.getObservedAt()).isEqualTo(submittedAt);

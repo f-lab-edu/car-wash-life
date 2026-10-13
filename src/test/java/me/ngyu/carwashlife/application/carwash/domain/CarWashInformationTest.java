@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -84,35 +83,6 @@ class CarWashInformationTest {
     assertThat(information.vacuumPrice()).isNull();
   }
 
-  @DisplayName("위도가 없으면 세차장 상세정보 생성을 거절한다.")
-  @Test
-  void missingLatitudeIsRejected() {
-    assertThatThrownBy(
-            () -> information()
-                    .latitude(null).build())
-            .isInstanceOf(IllegalArgumentException.class);
-  }
-
-  @DisplayName("위도가 허용 범위를 벗어나거나 유한하지 않으면 생성을 거절한다.")
-  @ParameterizedTest(name = "[{index}] {displayName}")
-  @ValueSource(doubles = {-90.1, 90.1, Double.NaN, Double.POSITIVE_INFINITY})
-  void invalidLatitudeIsRejected(double latitude) {
-    assertThatThrownBy(
-            () -> information()
-                    .latitude(latitude).build())
-            .isInstanceOf(IllegalArgumentException.class);
-  }
-
-  @DisplayName("경도가 허용 범위를 벗어나거나 유한하지 않으면 생성을 거절한다.")
-  @ParameterizedTest(name = "[{index}] {displayName}")
-  @ValueSource(doubles = {-180.1, 180.1, Double.NaN, Double.NEGATIVE_INFINITY})
-  void invalidLongitudeIsRejected(double longitude) {
-    assertThatThrownBy(
-            () -> information()
-                    .longitude(longitude).build())
-            .isInstanceOf(IllegalArgumentException.class);
-  }
-
   @DisplayName("빌더로 생성한 상세정보에서 입력하지 않은 시설은 미확인으로 정규화하고 가격과 베이 수는 null로 보존한다.")
   @Test
   void builderNormalizesUnspecifiedFacilitiesWithoutInventingPricesOrBayCounts() {
@@ -132,7 +102,7 @@ class CarWashInformationTest {
   @DisplayName("생성자로 직접 상세정보를 생성해도 생략한 시설은 미확인으로 정규화하고 입력한 무료 가격은 보존한다.")
   @Test
   void directConstructionNormalizesNullFacilitiesAndPreservesAReportedFreePrice() {
-    CarWashInformation information = new CarWashInformation("세차생활", null, 37.5, 127.0,
+    CarWashInformation information = new CarWashInformation("세차생활", null, new Coordinates(37.5, 127.0),
                                                             null, null, null, null, 0, null, 0, null, null);
 
     assertThat(information.foamLanceAvailability()).isEqualTo(FacilityAvailability.UNKNOWN);
@@ -146,7 +116,7 @@ class CarWashInformationTest {
   @DisplayName("생성자로 직접 음수 가격을 입력해도 상세정보 생성을 거절한다.")
   @Test
   void directConstructionCannotBypassPriceValidation() {
-    assertThatThrownBy(() -> new CarWashInformation("세차생활", null, 37.5, 127.0,
+    assertThatThrownBy(() -> new CarWashInformation("세차생활", null, new Coordinates(37.5, 127.0),
                                                     -1, null, null, null, null, null, null, null, null))
             .isInstanceOf(IllegalArgumentException.class);
   }
@@ -159,23 +129,13 @@ class CarWashInformationTest {
     assertThatThrownBy(() -> information().name(name).build()).isInstanceOf(IllegalArgumentException.class);
   }
 
-  @DisplayName("경도가 없으면 상세정보 생성을 거절한다.")
+  @DisplayName("좌표가 없으면 상세정보 생성을 거절한다.")
   @Test
-  void missingLongitudeIsRejected() {
-    assertThatThrownBy(() -> information().longitude(null).build()).isInstanceOf(IllegalArgumentException.class);
-  }
-
-  @DisplayName("위도와 경도가 허용 범위의 경계이면 상세정보를 생성한다.")
-  @ParameterizedTest(name = "[{index}] {displayName}")
-  @CsvSource({"-90, -180", "90, 180"})
-  void coordinateBoundariesAreAccepted(double latitude, double longitude) {
-    CarWashInformation information = information().latitude(latitude).longitude(longitude).build();
-
-    assertThat(information.latitude()).isEqualTo(latitude);
-    assertThat(information.longitude()).isEqualTo(longitude);
+  void missingCoordinatesAreRejected() {
+    assertThatThrownBy(() -> information().coordinates(null).build()).isInstanceOf(IllegalArgumentException.class);
   }
 
   private CarWashInformation.CarWashInformationBuilder information() {
-    return CarWashInformation.builder().name("세차생활").address("서울시").latitude(37.5).longitude(127.0);
+    return CarWashInformation.builder().name("세차생활").address("서울시").coordinates(new Coordinates(37.5, 127.0));
   }
 }

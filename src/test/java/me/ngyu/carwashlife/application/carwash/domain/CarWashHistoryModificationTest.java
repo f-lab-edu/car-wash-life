@@ -9,18 +9,19 @@ import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory.Fields;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 class CarWashHistoryModificationTest {
 
   private static final OffsetDateTime SUBMITTED_AT = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
-  private final CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, SUBMITTED_AT);
+  private final CarWash carWash = CarWash.create("세차생활", new Coordinates(37.5, 127.0), SUBMITTED_AT);
 
-  @DisplayName("자동 생성한 변경 항목은 기존 저장 코드와 동일한 13개 정보 항목만 포함한다.")
+  @DisplayName("변경 항목은 좌표를 하나로 묶은 12개 상세정보 항목만 포함한다.")
   @Test
-  void generatedFieldsKeepExistingCodesAndExcludeMetadata() {
+  void changedFieldsTreatCoordinatesAsOneInformationItemAndExcludeMetadata() {
     assertThat(Fields.values()).extracting(Enum::name).containsExactly(
-            "NAME", "ADDRESS", "LATITUDE", "LONGITUDE", "HIGH_PRESSURE_WATER_PRICE",
+            "NAME", "ADDRESS", "COORDINATES", "HIGH_PRESSURE_WATER_PRICE",
             "FOAM_LANCE_AVAILABILITY", "FOAM_GUN_PRICE", "AIR_GUN_AVAILABILITY", "AIR_GUN_PRICE",
             "VACUUM_AVAILABILITY", "VACUUM_PRICE", "WASH_BAY_COUNT", "DRYING_BAY_COUNT");
   }
@@ -44,8 +45,7 @@ class CarWashHistoryModificationTest {
     switch (field) {
       case NAME -> information.name("수정한 세차생활");
       case ADDRESS -> information.address("서울시 강남구");
-      case LATITUDE -> information.latitude(37.6);
-      case LONGITUDE -> information.longitude(127.1);
+      case COORDINATES -> information.coordinates(new Coordinates(37.6, 127.1));
       case HIGH_PRESSURE_WATER_PRICE -> information.highPressureWaterPrice(3500);
       case FOAM_LANCE_AVAILABILITY -> information.foamLanceAvailability(FacilityAvailability.AVAILABLE);
       case FOAM_GUN_PRICE -> information.foamGunPrice(4000);
@@ -74,6 +74,20 @@ class CarWashHistoryModificationTest {
     assertThat(base.getVisitExperience()).isEqualTo(VisitExperience.NOT_USED);
   }
 
+  @DisplayName("위도나 경도 중 하나만 바꾸어도 좌표 전체를 변경 항목으로 기록하고 새 이력을 출처로 제공한다.")
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @CsvSource({"37.6, 127.0", "37.5, 127.1"})
+  void changingOneAxisReplacesTheSourceOfTheCoordinatePair(double latitude, double longitude) {
+    CarWashHistory base = registration();
+    CarWashHistory next = CarWashHistory.modify(carWash, base, 2L, VisitExperience.USED, SUBMITTED_AT, SUBMITTED_AT,
+                                                information().coordinates(new Coordinates(latitude, longitude)).build());
+
+    assertThat(next.getChangedFields()).containsExactly(Fields.COORDINATES);
+    assertThat(next.getSourceHistory(Fields.COORDINATES)).isSameAs(next);
+    assertThat(next.getCoordinates()).isEqualTo(new Coordinates(latitude, longitude));
+    assertThat(base.getCoordinates()).isEqualTo(new Coordinates(37.5, 127.0));
+  }
+
   @DisplayName("수정을 반복해도 변경하지 않은 정보는 원래 이력의 관찰 시점을 유지한다.")
   @Test
   void unchangedFieldsKeepTheOriginalObservationAcrossMultipleModifications() {
@@ -84,8 +98,8 @@ class CarWashHistoryModificationTest {
     assertThat(second.getChangedFields()).containsExactly(Fields.NAME);
     assertThat(second.getSourceHistory(Fields.NAME)).isSameAs(second);
     assertThat(second.getSourceHistory(Fields.HIGH_PRESSURE_WATER_PRICE)).isSameAs(first);
-    assertThat(second.getSourceHistory(Fields.LATITUDE)).isSameAs(base);
-    assertThat(second.getSourceHistory(Fields.LATITUDE).getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
+    assertThat(second.getSourceHistory(Fields.COORDINATES)).isSameAs(base);
+    assertThat(second.getSourceHistory(Fields.COORDINATES).getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
   }
 
   @DisplayName("주소와 가격을 null로 바꾸면 정보 삭제를 실제 변경으로 기록한다.")
@@ -133,7 +147,7 @@ class CarWashHistoryModificationTest {
   @DisplayName("수정 요청의 기준 이력이 다른 세차장에 속하면 이력 생성을 거절한다.")
   @Test
   void modificationCannotReferenceAnotherCarWash() {
-    CarWash other = CarWash.create("다른 세차장", 37.5, 127.0, SUBMITTED_AT);
+    CarWash other = CarWash.create("다른 세차장", new Coordinates(37.5, 127.0), SUBMITTED_AT);
 
     assertThatThrownBy(() -> CarWashHistory.modify(other, registration(), 2L, VisitExperience.USED, SUBMITTED_AT, SUBMITTED_AT,
                                                    information()
@@ -169,8 +183,7 @@ class CarWashHistoryModificationTest {
     return CarWashInformation.builder()
                              .name("세차생활")
                              .address("서울시")
-                             .latitude(37.5)
-                             .longitude(127.0)
+                             .coordinates(new Coordinates(37.5, 127.0))
                              .highPressureWaterPrice(3000);
   }
 

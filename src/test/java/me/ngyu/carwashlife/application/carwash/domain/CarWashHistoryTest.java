@@ -12,7 +12,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class CarWashHistoryTest {
 
   private static final OffsetDateTime SUBMITTED_AT = OffsetDateTime.parse("2026-10-05T10:00:00+09:00");
-  private final CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, SUBMITTED_AT);
+  private final CarWash carWash = CarWash.create("세차생활", new Coordinates(37.5, 127.0), SUBMITTED_AT);
 
   @DisplayName("이력에서 입력하지 않은 시설과 가격 및 베이 수는 미확인 상태로 유지한다.")
   @Test
@@ -113,8 +113,7 @@ class CarWashHistoryTest {
     return CarWashInformation.builder()
                              .name("세차생활")
                              .address("서울시")
-                             .latitude(37.5)
-                             .longitude(127.0);
+                             .coordinates(new Coordinates(37.5, 127.0));
   }
 
 }
