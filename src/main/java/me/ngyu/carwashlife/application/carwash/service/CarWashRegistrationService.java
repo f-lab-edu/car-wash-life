@@ -41,15 +41,13 @@ public class CarWashRegistrationService {
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
     try {
       CarWashInformation information = request.information().toDomain();
-      int confidence = confidencePolicy.evaluate(
-              request.visitExperience(), request.observedAt(), false, submittedAt);
-      CarWash carWash = carWashRepository.save(CarWash.create(
-              information.name(), information.coordinates(), submittedAt));
-      CarWashHistory history = historyRepository.save(CarWashHistory.register(
-              carWash, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information));
+      int confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), false, submittedAt);
+      CarWash carWash = CarWash.create(information.name(), information.coordinates(), submittedAt);
+      CarWashHistory history = CarWashHistory.register(carWash, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information);
+      carWashRepository.save(carWash);
+      historyRepository.save(history);
       carWash.selectRepresentativeHistory(history, submittedAt);
-      return new RegisterCarWashDto.Response(
-              carWash.getId(), history.getId(), confidence, submittedAt);
+      return new RegisterCarWashDto.Response(carWash.getId(), history.getId(), confidence, submittedAt);
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
     }

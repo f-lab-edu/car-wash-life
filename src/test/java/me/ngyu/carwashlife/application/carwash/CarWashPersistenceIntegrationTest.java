@@ -28,16 +28,23 @@ class CarWashPersistenceIntegrationTest {
   void changingRepresentativeHistoryPersistsNewMasterInformationAndPreservesOldSnapshot() {
     OffsetDateTime submittedAt = OffsetDateTime.parse("2026-10-05T10:00:00+09:00");
     CarWash carWash = CarWash.create("세차생활", new Coordinates(37.5, 127.0), submittedAt);
-    entityManager.persist(carWash);
     CarWashHistory firstHistory = CarWashHistory.register(carWash, 1L, VisitExperience.NOT_USED, submittedAt, submittedAt,
                                                           CarWashInformation.builder()
                                                                             .name("세차생활")
                                                                             .address("서울시")
                                                                             .coordinates(new Coordinates(37.5, 127.0))
                                                                             .build());
+    assertThat(carWash.getId()).isNull();
+    assertThat(firstHistory.getId()).isNull();
+    entityManager.persist(carWash);
     entityManager.persist(firstHistory);
     carWash.selectRepresentativeHistory(firstHistory, submittedAt);
     entityManager.flush();
+    entityManager.clear();
+    carWash = entityManager.find(CarWash.class, carWash.getId());
+    firstHistory = entityManager.find(CarWashHistory.class, firstHistory.getId());
+    assertThat(carWash.getTargetHistory()).isSameAs(firstHistory);
+    assertThat(firstHistory.getCarWash()).isSameAs(carWash);
     CarWashHistory nextHistory = CarWashHistory.modify(carWash, firstHistory, 2L, VisitExperience.USED, submittedAt.plusHours(1), submittedAt.plusHours(1),
                                                        CarWashInformation.builder()
                                                                          .name("수정한 세차생활")

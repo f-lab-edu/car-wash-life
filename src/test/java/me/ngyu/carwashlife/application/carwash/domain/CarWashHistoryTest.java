@@ -14,6 +14,18 @@ class CarWashHistoryTest {
   private static final OffsetDateTime SUBMITTED_AT = OffsetDateTime.parse("2026-10-05T10:00:00+09:00");
   private final CarWash carWash = CarWash.create("세차생활", new Coordinates(37.5, 127.0), SUBMITTED_AT);
 
+  @DisplayName("저장 전 식별자가 없는 원장으로 최초 이력을 생성하면 원장 관계와 상세정보를 유지한다.")
+  @Test
+  void registrationCanReferenceAnUnsavedCarWash() {
+    CarWashHistory history = registration();
+
+    assertThat(carWash.getId()).isNull();
+    assertThat(history.getId()).isNull();
+    assertThat(history.getCarWash()).isSameAs(carWash);
+    assertThat(history.getName()).isEqualTo("세차생활");
+    assertThat(history.getCoordinates()).isEqualTo(new Coordinates(37.5, 127.0));
+  }
+
   @DisplayName("이력에서 입력하지 않은 시설과 가격 및 베이 수는 미확인 상태로 유지한다.")
   @Test
   void unspecifiedFacilitiesPricesAndBayCountsRemainUnknown() {

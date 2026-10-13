@@ -44,8 +44,7 @@ public class CarWashModificationService {
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
     try {
       CarWashInformation information = request.information().toDomain();
-      int confidence = confidencePolicy.evaluate(
-              request.visitExperience(), request.observedAt(), false, submittedAt);
+      int confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), false, submittedAt);
       CarWashHistory history = historyRepository.save(CarWashHistory.modify(
               carWash, baseHistory, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information));
       return new ModifyCarWashDto.Response(
