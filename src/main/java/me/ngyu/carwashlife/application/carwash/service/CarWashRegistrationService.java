@@ -49,7 +49,7 @@ public class CarWashRegistrationService {
       carWash.selectRepresentativeHistory(history, submittedAt);
       return new RegisterCarWashDto.Response(carWash.getId(), history.getId(), confidence, submittedAt);
     } catch (IllegalArgumentException exception) {
-      throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
+      throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
   }
 }

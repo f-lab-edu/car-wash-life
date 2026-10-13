@@ -51,7 +51,7 @@ public class CarWashModificationService {
               carWash.getId(), history.getId(), baseHistory.getId(), history.getChangedFields(),
               confidence, submittedAt);
     } catch (IllegalArgumentException exception) {
-      throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
+      throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
   }
 }
