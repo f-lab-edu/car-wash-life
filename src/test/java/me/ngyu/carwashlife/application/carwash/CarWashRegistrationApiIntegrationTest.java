@@ -128,15 +128,15 @@ class CarWashRegistrationApiIntegrationTest {
     assertThat(history.getLongitude()).isEqualTo(127.0);
     assertThat(history.getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(1));
     assertThat(history.getSubmittedAt()).isEqualTo(SUBMITTED_AT);
-    assertThat(history.getHighPressureWaterPrice()).isEqualTo(3000);
-    assertThat(history.getFoamLanceAvailability()).isEqualTo(FacilityAvailability.AVAILABLE);
-    assertThat(history.getFoamGunPrice()).isEqualTo(4000);
-    assertThat(history.getAirGunAvailability()).isEqualTo(FacilityAvailability.AVAILABLE);
-    assertThat(history.getAirGunPrice()).isZero();
-    assertThat(history.getVacuumAvailability()).isEqualTo(FacilityAvailability.AVAILABLE);
-    assertThat(history.getVacuumPrice()).isEqualTo(1000);
-    assertThat(history.getWashBayCount()).isEqualTo(6);
-    assertThat(history.getDryingBayCount()).isEqualTo(10);
+    assertThat(history)
+            .extracting(CarWashHistory::getFoamLanceAvailability, CarWashHistory::getAirGunAvailability, CarWashHistory::getVacuumAvailability)
+            .containsExactly(FacilityAvailability.AVAILABLE, FacilityAvailability.AVAILABLE, FacilityAvailability.AVAILABLE);
+    assertThat(history)
+            .extracting(CarWashHistory::getHighPressureWaterPrice, CarWashHistory::getFoamGunPrice, CarWashHistory::getAirGunPrice, CarWashHistory::getVacuumPrice)
+            .containsExactly(3000, 4000, 0, 1000);
+    assertThat(history)
+            .extracting(CarWashHistory::getWashBayCount, CarWashHistory::getDryingBayCount)
+            .containsExactly(6, 10);
   }
 
   @DisplayName("필수 정보만 등록하면 입력하지 않은 시설과 가격 및 베이 수를 미확인 상태로 저장한다.")
@@ -154,15 +154,15 @@ class CarWashRegistrationApiIntegrationTest {
 
     CarWashHistory history = historyRepository.findAll().getFirst();
     assertThat(history.getAddress()).isNull();
-    assertThat(history.getFoamLanceAvailability()).isEqualTo(FacilityAvailability.UNKNOWN);
-    assertThat(history.getAirGunAvailability()).isEqualTo(FacilityAvailability.UNKNOWN);
-    assertThat(history.getVacuumAvailability()).isEqualTo(FacilityAvailability.UNKNOWN);
-    assertThat(history.getHighPressureWaterPrice()).isNull();
-    assertThat(history.getFoamGunPrice()).isNull();
-    assertThat(history.getAirGunPrice()).isNull();
-    assertThat(history.getVacuumPrice()).isNull();
-    assertThat(history.getWashBayCount()).isNull();
-    assertThat(history.getDryingBayCount()).isNull();
+    assertThat(history)
+            .extracting(CarWashHistory::getFoamLanceAvailability, CarWashHistory::getAirGunAvailability, CarWashHistory::getVacuumAvailability)
+            .containsExactly(FacilityAvailability.UNKNOWN, FacilityAvailability.UNKNOWN, FacilityAvailability.UNKNOWN);
+    assertThat(history)
+            .extracting(CarWashHistory::getHighPressureWaterPrice, CarWashHistory::getFoamGunPrice, CarWashHistory::getAirGunPrice, CarWashHistory::getVacuumPrice)
+            .containsOnlyNulls();
+    assertThat(history)
+            .extracting(CarWashHistory::getWashBayCount, CarWashHistory::getDryingBayCount)
+            .containsOnlyNulls();
   }
 
   @DisplayName("관찰한 지 90일이 넘은 정보를 등록하면 최근성 점수를 가산하지 않는다.")
