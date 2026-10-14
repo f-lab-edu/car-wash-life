@@ -1,6 +1,7 @@
 package me.ngyu.carwashlife.application.carwash.domain;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -25,11 +26,8 @@ public class CarWash {
   @Column(nullable = false)
   private String name;
 
-  @Column(nullable = false)
-  private double latitude;
-
-  @Column(nullable = false)
-  private double longitude;
+  @Embedded
+  private Coordinates coordinates;
 
   @Column(nullable = false)
   private boolean operatorManaged;
@@ -47,21 +45,19 @@ public class CarWash {
   protected CarWash() {
   }
 
-  private CarWash(String name, double latitude, double longitude, OffsetDateTime createdAt) {
-    validateLocation(name, latitude, longitude);
+  private CarWash(String name, Coordinates coordinates, OffsetDateTime createdAt) {
+    validateName(name);
     this.name = name;
-    this.latitude = latitude;
-    this.longitude = longitude;
+    this.coordinates = Objects.requireNonNull(coordinates, "좌표는 필수입니다.");
     this.createdAt = Objects.requireNonNull(createdAt, "최초 등록 시점은 필수입니다.");
     this.updatedAt = createdAt;
     this.operatorManaged = false;
   }
 
   public static CarWash create(String name,
-                               double latitude,
-                               double longitude,
+                               Coordinates coordinates,
                                OffsetDateTime createdAt) {
-    return new CarWash(name, latitude, longitude, createdAt);
+    return new CarWash(name, coordinates, createdAt);
   }
 
   public void selectRepresentativeHistory(CarWashHistory history, OffsetDateTime selectedAt) {
@@ -81,20 +77,21 @@ public class CarWash {
 
     this.targetHistory = history;
     this.name = history.getName();
-    this.latitude = history.getLatitude();
-    this.longitude = history.getLongitude();
+    this.coordinates = history.getCoordinates();
     this.updatedAt = selectedAt;
   }
 
-  private static void validateLocation(String name, double latitude, double longitude) {
+  public double getLatitude() {
+    return coordinates.getLatitude();
+  }
+
+  public double getLongitude() {
+    return coordinates.getLongitude();
+  }
+
+  private static void validateName(String name) {
     if (name == null || name.isBlank()) {
       throw new IllegalArgumentException("세차장 이름은 필수입니다.");
-    }
-    if (!Double.isFinite(latitude) || latitude < -90 || latitude > 90) {
-      throw new IllegalArgumentException("위도는 -90부터 90 사이여야 합니다.");
-    }
-    if (!Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      throw new IllegalArgumentException("경도는 -180부터 180 사이여야 합니다.");
     }
   }
 }

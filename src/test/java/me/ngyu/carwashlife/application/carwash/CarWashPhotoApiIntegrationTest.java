@@ -16,6 +16,7 @@ import jakarta.persistence.LockModeType;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -30,6 +31,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.CRC32;
 import javax.imageio.ImageIO;
+import me.ngyu.carwashlife.application.carwash.api.dto.CarWashInformationDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
@@ -78,7 +80,8 @@ class CarWashPhotoApiIntegrationTest {
   @TempDir
   static Path root;
   private static final String SNAPSHOT = """
-          {"name":"세차생활","latitude":37.5,"longitude":127.0,"visitExperience":"USED","observedAt":"2026-10-06T12:00:00+09:00"}
+          {"visitExperience":"USED","observedAt":"2026-10-06T12:00:00+09:00",
+           "information":{"name":"세차생활","latitude":37.5,"longitude":127.0}}
           """;
 
   @Autowired
@@ -152,6 +155,47 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(photo.getSize()).isEqualTo(bytes.length);
     assertThat(photo.getStorageKey()).matches("[a-f0-9-]{36}");
     assertThat(Files.readAllBytes(root.resolve(photo.getStorageKey()))).isEqualTo(bytes);
+  }
+
+  @Test
+  @DisplayName("저장된 사진 파일을 읽지 못하면 원인 예외를 보존하고 내부 저장 정보를 공개하지 않는다.")
+  void storageReadFailuresPreserveTheirCauseWithoutExposingStorageDetails() throws Exception {
+    Long photoId = upload();
+    String key = photoRepository.findById(photoId).orElseThrow().getStorageKey();
+    Files.delete(root.resolve(key));
+
+    MvcResult result = mockMvc.perform(get("/car-wash-photos/{id}", photoId).header("Authorization", "Bearer " + token))
+                              .andExpect(status().isInternalServerError())
+                              .andExpect(jsonPath("$.code").value("PHOTO_STORAGE_ERROR"))
+                              .andExpect(jsonPath("$.cause").doesNotExist())
+                              .andExpect(jsonPath("$.storageKey").doesNotExist()).andReturn();
+
+    assertThat(result.getResolvedException()).isInstanceOf(ApplicationException.class).hasCauseInstanceOf(IOException.class);
+    assertThat(result.getResponse().getContentAsString()).doesNotContain(key, root.toString());
+    assertThat(photoRepository.count()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("업로드 파일을 읽지 못하면 원인 예외를 보존하고 사진 정보나 파일을 저장하지 않는다.")
+  void uploadReadFailuresPreserveTheirCauseWithoutSavingAPhoto() throws Exception {
+    IOException failure = new IOException("업로드 파일 읽기 실패");
+    MockMultipartFile unreadable = new MockMultipartFile("file", "photo.png", "image/png", image("png")) {
+      @Override
+      public InputStream getInputStream() throws IOException {
+        throw failure;
+      }
+    };
+
+    MvcResult result = mockMvc.perform(multipart("/car-wash-photos").file(unreadable).header("Authorization", "Bearer " + token))
+                              .andExpect(status().isBadRequest())
+                              .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                              .andExpect(jsonPath("$.cause").doesNotExist()).andReturn();
+
+    assertThat(result.getResolvedException()).isInstanceOf(ApplicationException.class).hasCause(failure);
+    assertThat(photoRepository.count()).isZero();
+    try (var files = Files.list(root)) {
+      assertThat(files.count()).isZero();
+    }
   }
 
   @Test
@@ -445,8 +489,9 @@ class CarWashPhotoApiIntegrationTest {
             throw new IllegalStateException("사진 소비 시작 대기 시간 초과");
           }
           try {
-            registrationService.register(memberId, new RegisterCarWashDto.Request("세차생활", null, 37.5, 127.0, VisitExperience.USED, NOW.minusDays(1),
-                                                                                  null, null, null, null, null, null, null, null, null, List.of(photoId)));
+            registrationService.register(memberId, new RegisterCarWashDto.Request(VisitExperience.USED, NOW.minusDays(1),
+                                                                                  new CarWashInformationDto.Request("세차생활", null, 37.5, 127.0, null, null, null, null, null, null, null, null, null),
+                                                                                  List.of(photoId)));
             return true;
           } catch (ApplicationException exception) {
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.VALIDATION_ERROR);
@@ -482,11 +527,11 @@ class CarWashPhotoApiIntegrationTest {
   }
 
   private String modification(Long baseHistoryId, List<Long> photos) {
-    return withPhotos(SNAPSHOT.replace("{", "{\"baseHistoryId\":" + baseHistoryId + ","), photos);
+    return withPhotos(SNAPSHOT.replaceFirst("\\{", "{\"baseHistoryId\":" + baseHistoryId + ","), photos);
   }
 
   private static String withPhotos(String snapshot, List<Long> photos) {
-    return snapshot.replace("{", "{\"photoIds\":" + photos + ",");
+    return snapshot.replaceFirst("\\{", "{\"photoIds\":" + photos + ",");
   }
 
   private void cleanDatabase() {

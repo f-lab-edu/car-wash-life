@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
@@ -41,11 +42,11 @@ class CarWashQueryApiIntegrationTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private static final String SNAPSHOT = """
-          {"name":"세차생활","address":"서울시","latitude":37.5,"longitude":127.0,
-           "visitExperience":"USED","observedAt":"2026-10-05T12:00:00+09:00",
-           "highPressureWaterPrice":3000,"foamLanceAvailability":"AVAILABLE",
-           "foamGunPrice":4000,"airGunAvailability":"AVAILABLE","airGunPrice":0,
-           "vacuumAvailability":"AVAILABLE","vacuumPrice":1000,"washBayCount":6,"dryingBayCount":10}
+          {"visitExperience":"USED","observedAt":"2026-10-05T12:00:00+09:00",
+           "information":{"name":"세차생활","address":"서울시","latitude":37.5,"longitude":127.0,
+                          "highPressureWaterPrice":3000,"foamLanceAvailability":"AVAILABLE",
+                          "foamGunPrice":4000,"airGunAvailability":"AVAILABLE","airGunPrice":0,
+                          "vacuumAvailability":"AVAILABLE","vacuumPrice":1000,"washBayCount":6,"dryingBayCount":10}}
           """;
 
   @Autowired
@@ -117,8 +118,10 @@ class CarWashQueryApiIntegrationTest {
              String submittedAt = JsonPath.read(result.getResponse().getContentAsString(), "$.submittedAt");
              assertThat(OffsetDateTime.parse(observedAt).toInstant()).isEqualTo(NOW.minusDays(2).toInstant());
              assertThat(OffsetDateTime.parse(submittedAt).toInstant()).isEqualTo(NOW.toInstant());
+             List<String> changedFields = JsonPath.read(result.getResponse().getContentAsString(), "$.changedFields");
+             assertThat(changedFields).contains("COORDINATES").doesNotContain("LATITUDE", "LONGITUDE");
            })
-           .andExpect(jsonPath("$.changedFields.length()").value(14))
+           .andExpect(jsonPath("$.changedFields.length()").value(13))
            .andExpect(jsonPath("$.memberId").doesNotExist());
   }
 
@@ -248,7 +251,7 @@ class CarWashQueryApiIntegrationTest {
   }
 
   private String modification() {
-    return SNAPSHOT.replace("{", "{\"baseHistoryId\":" + originalHistoryId + ",").replace("2026-10-05", "2026-10-06");
+    return SNAPSHOT.replaceFirst("\\{", "{\"baseHistoryId\":" + originalHistoryId + ",").replace("2026-10-05", "2026-10-06");
   }
 
   @TestConfiguration
@@ -273,6 +276,16 @@ class CarWashQueryApiIntegrationTest {
 
     void setInstant(Instant instant) {
       this.instant.set(instant);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return this == other;
+    }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(this);
     }
 
     @Override

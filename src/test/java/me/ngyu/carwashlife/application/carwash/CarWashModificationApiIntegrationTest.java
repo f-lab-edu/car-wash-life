@@ -9,8 +9,8 @@ import java.time.OffsetDateTime;
 import java.util.EnumSet;
 import java.util.stream.Stream;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory.Fields;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryField;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryType;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 import me.ngyu.carwashlife.application.member.domain.Member;
@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -42,9 +43,9 @@ class CarWashModificationApiIntegrationTest {
 
   private static final OffsetDateTime SUBMITTED_AT = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private static final String SNAPSHOT = """
-          {"name":"세차생활","address":"서울시","latitude":37.5,"longitude":127.0,
-           "visitExperience":"NOT_USED","observedAt":"2026-06-29T12:00:00+09:00",
-           "highPressureWaterPrice":3000}
+          {"visitExperience":"NOT_USED","observedAt":"2026-06-29T12:00:00+09:00",
+           "information":{"name":"세차생활","address":"서울시","latitude":37.5,"longitude":127.0,
+                          "highPressureWaterPrice":3000}}
           """;
 
   @Autowired
@@ -92,8 +93,53 @@ class CarWashModificationApiIntegrationTest {
     token = accessTokenProvider.create(modifyingMember.getId());
   }
 
+  @DisplayName("기존 enum 이름으로 저장한 변경 항목을 자동 생성 enum으로 읽어도 동일한 정보를 복원한다.")
   @Test
+  void previouslyStoredChangedFieldNamesRemainReadable() {
+    jdbcTemplate.update("update car_wash_history set changed_field_names = ? where id = ?",
+                        "NAME,HIGH_PRESSURE_WATER_PRICE", baseHistoryId);
+
+    CarWashHistory history = historyRepository.findById(baseHistoryId).orElseThrow();
+
+    assertThat(history.getChangedFields()).containsExactly(Fields.NAME, Fields.HIGH_PRESSURE_WATER_PRICE);
+  }
+
+  @DisplayName("기존 위도 또는 경도 변경 기록은 좌표 전체의 변경으로 복원하고 이후 수정에도 해당 출처를 유지한다.")
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @ValueSource(strings = {"LATITUDE", "LONGITUDE", "LATITUDE,LONGITUDE"})
+  void legacyAxisChangesRemainTheSourceOfTheCoordinatePair(String legacyFields) throws Exception {
+    mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(modification(baseHistoryId, 3000).replace("37.5", "37.6")))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.changedFields[0]").value("COORDINATES"))
+           .andExpect(jsonPath("$.changedFields.length()").value(1));
+    Long coordinateHistoryId = modificationHistory().getId();
+    jdbcTemplate.update("update car_wash_history set changed_field_names = ? where id = ?", legacyFields, coordinateHistoryId);
+
+    mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(modification(coordinateHistoryId, 3500).replace("37.5", "37.6")))
+           .andExpect(status().isCreated());
+
+    new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+      CarWashHistory legacy = historyRepository.findById(coordinateHistoryId).orElseThrow();
+      assertThat(legacy.getChangedFields()).containsExactly(Fields.COORDINATES);
+      CarWashHistory latest = historyRepository.findAll().stream()
+                                               .filter(history -> history.getBaseHistory() != null
+                                                       && history.getBaseHistory().getId().equals(coordinateHistoryId))
+                                               .findFirst().orElseThrow();
+      CarWashHistory source = latest.getSourceHistory(Fields.COORDINATES);
+      assertThat(source.getId()).isEqualTo(coordinateHistoryId);
+      assertThat(source.getLatitude()).isEqualTo(37.6);
+      assertThat(source.getLongitude()).isEqualTo(127.0);
+    });
+  }
+
   @DisplayName("신뢰도가 높은 수정 요청을 제출하면 기존 이력을 보존하고 새 전체 정보 이력을 대표로 반영한다.")
+  @Test
   void modificationAppendsASnapshotPreservesTheOriginalAndReflectsTheHigherConfidenceHistory() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId)
                             .header("Authorization", "Bearer " + token)
@@ -122,7 +168,9 @@ class CarWashModificationApiIntegrationTest {
     assertThat(next.getLatitude()).isEqualTo(37.5);
     assertThat(next.getLongitude()).isEqualTo(127.0);
     assertThat(next.getHighPressureWaterPrice()).isEqualTo(3500);
-    assertThat(next.getChangedFields()).containsExactly(CarWashHistoryField.HIGH_PRESSURE_WATER_PRICE);
+    assertThat(next.getChangedFields()).containsExactly(Fields.HIGH_PRESSURE_WATER_PRICE);
+    assertThat(jdbcTemplate.queryForObject("select changed_field_names from car_wash_history where id = ?", String.class, next.getId()))
+            .isEqualTo("HIGH_PRESSURE_WATER_PRICE");
     CarWashHistory original = historyRepository.findById(baseHistoryId).orElseThrow();
     assertThat(original.getHighPressureWaterPrice()).isEqualTo(3000);
     assertThat(original.getMemberId()).isEqualTo(originalAuthorId);
@@ -171,11 +219,11 @@ class CarWashModificationApiIntegrationTest {
 
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
       CarWashHistory latest = historyRepository.findAll().stream()
-                                               .filter(history -> history.getChangedFields().equals(EnumSet.of(CarWashHistoryField.NAME)))
+                                               .filter(history -> history.getChangedFields().equals(EnumSet.of(Fields.NAME)))
                                                .findFirst().orElseThrow();
-      assertThat(latest.getSourceHistory(CarWashHistoryField.NAME).getId()).isEqualTo(latest.getId());
-      assertThat(latest.getSourceHistory(CarWashHistoryField.HIGH_PRESSURE_WATER_PRICE).getId()).isEqualTo(firstModificationId);
-      CarWashHistory original = latest.getSourceHistory(CarWashHistoryField.LATITUDE);
+      assertThat(latest.getSourceHistory(Fields.NAME).getId()).isEqualTo(latest.getId());
+      assertThat(latest.getSourceHistory(Fields.HIGH_PRESSURE_WATER_PRICE).getId()).isEqualTo(firstModificationId);
+      CarWashHistory original = latest.getSourceHistory(Fields.COORDINATES);
       assertThat(original.getId()).isEqualTo(baseHistoryId);
       assertThat(original.getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
       assertThat(original.getVisitExperience()).isEqualTo(VisitExperience.NOT_USED);
@@ -195,11 +243,11 @@ class CarWashModificationApiIntegrationTest {
     Long modificationId = modificationHistory().getId();
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
       CarWashHistory legacy = historyRepository.findById(baseHistoryId).orElseThrow();
-      assertThat(legacy.getChangedFields()).isEqualTo(EnumSet.allOf(CarWashHistoryField.class));
+      assertThat(legacy.getChangedFields()).isEqualTo(EnumSet.allOf(Fields.class));
       CarWashHistory next = historyRepository.findById(modificationId).orElseThrow();
-      assertThat(next.getChangedFields()).containsExactly(CarWashHistoryField.HIGH_PRESSURE_WATER_PRICE);
-      assertThat(next.getSourceHistory(CarWashHistoryField.LATITUDE).getId()).isEqualTo(baseHistoryId);
-      assertThat(next.getSourceHistory(CarWashHistoryField.HIGH_PRESSURE_WATER_PRICE).getId()).isEqualTo(modificationId);
+      assertThat(next.getChangedFields()).containsExactly(Fields.HIGH_PRESSURE_WATER_PRICE);
+      assertThat(next.getSourceHistory(Fields.COORDINATES).getId()).isEqualTo(baseHistoryId);
+      assertThat(next.getSourceHistory(Fields.HIGH_PRESSURE_WATER_PRICE).getId()).isEqualTo(modificationId);
     });
   }
 
@@ -234,7 +282,7 @@ class CarWashModificationApiIntegrationTest {
     CarWashHistory next = modificationHistory();
     assertThat(next.getAddress()).isNull();
     assertThat(next.getHighPressureWaterPrice()).isNull();
-    assertThat(next.getChangedFields()).containsExactly(CarWashHistoryField.ADDRESS, CarWashHistoryField.HIGH_PRESSURE_WATER_PRICE);
+    assertThat(next.getChangedFields()).containsExactly(Fields.ADDRESS, Fields.HIGH_PRESSURE_WATER_PRICE);
   }
 
   @Test
@@ -311,6 +359,23 @@ class CarWashModificationApiIntegrationTest {
     assertThat(carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId()).isEqualTo(baseHistoryId);
   }
 
+  @DisplayName("수정 요청의 상세정보가 생략되거나 null이면 기존 원장과 이력을 보존하고 거절한다.")
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @ValueSource(strings = {"", "null"})
+  void missingOrNullInformationCannotModify(String information) throws Exception {
+    String request = "{\"baseHistoryId\":" + baseHistoryId
+            + ",\"visitExperience\":\"USED\",\"observedAt\":\"2026-10-06T12:00:00+09:00\""
+            + (information.isEmpty() ? "" : ",\"information\":null") + "}";
+
+    mockMvc.perform(post("/car-washes/{id}/histories", carWashId).header("Authorization", "Bearer " + token)
+                                                                 .contentType(MediaType.APPLICATION_JSON).content(request))
+           .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+    assertThat(historyRepository.count()).isEqualTo(1);
+    assertThat(carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId()).isEqualTo(baseHistoryId);
+    assertThat(historyRepository.findById(baseHistoryId).orElseThrow().getHighPressureWaterPrice()).isEqualTo(3000);
+  }
+
   static Stream<Arguments> invalidFields() {
     return Stream.of(
             Arguments.of("missing base", "\"baseHistoryId\":", "\"ignoredBase\":"),
@@ -378,7 +443,7 @@ class CarWashModificationApiIntegrationTest {
   }
 
   private String modification(Long baseId, int price) {
-    return SNAPSHOT.replace("{", "{\"baseHistoryId\":" + baseId + ",")
+    return SNAPSHOT.replaceFirst("\\{", "{\"baseHistoryId\":" + baseId + ",")
                    .replace("\"NOT_USED\"", "\"USED\"")
                    .replace("2026-06-29", "2026-10-06")
                    .replace("\"highPressureWaterPrice\":3000", "\"highPressureWaterPrice\":" + price);

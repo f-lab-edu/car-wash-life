@@ -1,17 +1,13 @@
 package me.ngyu.carwashlife.application.carwash.api.dto;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryField;
-import me.ngyu.carwashlife.application.carwash.domain.FacilityAvailability;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory.Fields;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 
 public class ModifyCarWashDto {
@@ -25,21 +21,9 @@ public class ModifyCarWashDto {
    * photoIds에는 이번 요청의 신규 사진만 제출한다. 생략/null/빈 목록이면 기준 이력의 사진을 유지한다.
    */
   public record Request(@NotNull @Positive Long baseHistoryId,
-                        @NotBlank @Size(max = 255) String name,
-                        @Size(max = 255) String address,
-                        @NotNull @DecimalMin("-90") @DecimalMax("90") Double latitude,
-                        @NotNull @DecimalMin("-180") @DecimalMax("180") Double longitude,
                         @NotNull VisitExperience visitExperience,
                         @NotNull OffsetDateTime observedAt,
-                        @PositiveOrZero Integer highPressureWaterPrice,
-                        FacilityAvailability foamLanceAvailability,
-                        @PositiveOrZero Integer foamGunPrice,
-                        FacilityAvailability airGunAvailability,
-                        @PositiveOrZero Integer airGunPrice,
-                        FacilityAvailability vacuumAvailability,
-                        @PositiveOrZero Integer vacuumPrice,
-                        @PositiveOrZero Integer washBayCount,
-                        @PositiveOrZero Integer dryingBayCount,
+                        @NotNull @Valid CarWashInformationDto.Request information,
                         @Size(max = 5) List<@NotNull @Positive Long> photoIds) {
 
   }
@@ -47,7 +31,7 @@ public class ModifyCarWashDto {
   public record Response(Long carWashId,
                          Long historyId,
                          Long baseHistoryId,
-                         Set<CarWashHistoryField> changedFields,
+                         Set<Fields> changedFields,
                          int confidence,
                          OffsetDateTime submittedAt) {
 

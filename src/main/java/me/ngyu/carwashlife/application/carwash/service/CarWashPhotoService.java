@@ -43,7 +43,7 @@ public class CarWashPhotoService {
     try {
       key = storage.write(photo.content());
     } catch (IOException exception) {
-      throw new ApplicationException(ErrorCode.PHOTO_STORAGE_ERROR);
+      throw new ApplicationException(ErrorCode.PHOTO_STORAGE_ERROR, exception);
     }
     TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
       @Override
@@ -52,7 +52,7 @@ public class CarWashPhotoService {
           try {
             storage.delete(key);
           } catch (IOException exception) {
-            System.getLogger(CarWashPhotoService.class.getName()).log(System.Logger.Level.ERROR, "롤백된 사진 파일을 정리하지 못했습니다.");
+            System.getLogger(CarWashPhotoService.class.getName()).log(System.Logger.Level.ERROR, "롤백된 사진 파일을 정리하지 못했습니다.", exception);
           }
         }
       }
@@ -76,7 +76,7 @@ public class CarWashPhotoService {
       }
       return new PhotoContent(content, photo.getContentType());
     } catch (IOException exception) {
-      throw new ApplicationException(ErrorCode.PHOTO_STORAGE_ERROR);
+      throw new ApplicationException(ErrorCode.PHOTO_STORAGE_ERROR, exception);
     }
   }
 

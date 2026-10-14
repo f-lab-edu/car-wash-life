@@ -32,7 +32,7 @@ public class CarWashPhotoValidator {
     try (InputStream input = file.getInputStream()) {
       content = input.readNBytes(MAX_BYTES + 1);
     } catch (IOException exception) {
-      throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
+      throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
     if (content.length > MAX_BYTES) {
       throw new ApplicationException(ErrorCode.PHOTO_TOO_LARGE);
@@ -61,7 +61,7 @@ public class CarWashPhotoValidator {
         reader.dispose();
       }
     } catch (IOException | IllegalArgumentException exception) {
-      throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
+      throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
   }
 

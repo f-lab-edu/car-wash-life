@@ -39,13 +39,12 @@ public class CarWashQueryService {
                                        .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_NOT_FOUND));
     CarWashRepresentativePolicy.Selection selection = representativeService.selectAndReflect(carWash, OffsetDateTime.now(clock));
     CarWashHistory history = selection.history();
-    return new CarWashDetailDto.Response(
-            carWash.getId(), history.getId(), selection.confidence(), carWash.isOperatorManaged(),
-            history.getBaseHistory() == null ? null : history.getBaseHistory().getId(), history.getChangedFields(),
-            history.getVisitExperience(), history.getObservedAt(), history.getSubmittedAt(),
-            history.getName(), history.getAddress(), history.getLatitude(), history.getLongitude(),
-            history.getHighPressureWaterPrice(), history.getFoamLanceAvailability(), history.getFoamGunPrice(),
-            history.getAirGunAvailability(), history.getAirGunPrice(), history.getVacuumAvailability(), history.getVacuumPrice(),
-            history.getWashBayCount(), history.getDryingBayCount(), photoService.snapshots(history));
+    return new CarWashDetailDto.Response(carWash.getId(), history.getId(), selection.confidence(), carWash.isOperatorManaged(),
+                                         history.getBaseHistory() == null ? null : history.getBaseHistory().getId(), history.getChangedFields(),
+                                         history.getVisitExperience(), history.getObservedAt(), history.getSubmittedAt(),
+                                         history.getName(), history.getAddress(), history.getLatitude(), history.getLongitude(),
+                                         history.getHighPressureWaterPrice(), history.getFoamLanceAvailability(), history.getFoamGunPrice(),
+                                         history.getAirGunAvailability(), history.getAirGunPrice(), history.getVacuumAvailability(), history.getVacuumPrice(),
+                                         history.getWashBayCount(), history.getDryingBayCount(), photoService.snapshots(history));
   }
 }

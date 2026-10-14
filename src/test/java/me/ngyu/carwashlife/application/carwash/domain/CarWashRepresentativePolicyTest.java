@@ -14,7 +14,7 @@ class CarWashRepresentativePolicyTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private final CarWashRepresentativePolicy policy = new CarWashRepresentativePolicy(new CarWashConfidencePolicy());
-  private final CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, NOW.minusDays(200));
+  private final CarWash carWash = CarWash.create("세차생활", new Coordinates(37.5, 127.0), NOW.minusDays(200));
 
   @Test
   @DisplayName("관찰 시점이 더 늦은 이력이 있어도 신뢰도가 가장 높은 이력을 대표로 선택한다.")
@@ -95,10 +95,8 @@ class CarWashRepresentativePolicyTest {
   @Test
   @DisplayName("사진 근거 이력의 최근성이 만료되어 동점이 되면 최신 관찰 이력을 대표로 선택한다.")
   void anOlderPhotoBackedHistoryCanLoseItsLeadAsItsRecencyExpires() {
-    CarWashHistory oldPhoto = CarWashHistory.builder().carWash(carWash).memberId(1L)
-                                            .type(CarWashHistoryType.REGISTRATION).visitExperience(VisitExperience.USED)
-                                            .observedAt(NOW.minusDays(90)).submittedAt(NOW)
-                                            .name("사진 근거 이력").latitude(37.5).longitude(127.0).newPhotoIds(List.of(10L)).build();
+    CarWashHistory oldPhoto = CarWashHistory.register(carWash, 1L, VisitExperience.USED, NOW.minusDays(90), NOW,
+                                                      CarWashInformation.builder().name("사진 근거 이력").coordinates(new Coordinates(37.5, 127.0)).build(), List.of(10L));
     ReflectionTestUtils.setField(oldPhoto, "id", 1L);
     CarWashHistory recent = history(2L, VisitExperience.USED, NOW.minusDays(1), NOW);
 
@@ -109,10 +107,8 @@ class CarWashRepresentativePolicyTest {
   }
 
   private CarWashHistory history(Long id, VisitExperience experience, OffsetDateTime observedAt, OffsetDateTime submittedAt) {
-    CarWashHistory history = CarWashHistory.builder().carWash(carWash).memberId(1L)
-                                           .type(CarWashHistoryType.REGISTRATION).visitExperience(experience)
-                                           .observedAt(observedAt).submittedAt(submittedAt)
-                                           .name("세차생활").latitude(37.5).longitude(127.0).build();
+    CarWashHistory history = CarWashHistory.register(carWash, 1L, experience, observedAt, submittedAt,
+                                                     CarWashInformation.builder().name("세차생활").coordinates(new Coordinates(37.5, 127.0)).build());
     ReflectionTestUtils.setField(history, "id", id);
     return history;
   }

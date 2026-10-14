@@ -17,8 +17,8 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import javax.imageio.ImageIO;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory.Fields;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryField;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
@@ -153,8 +153,8 @@ class CarWashEndToEndIntegrationTest {
       assertThat(original.getVisitExperience()).isEqualTo(VisitExperience.NOT_USED);
       assertThat(original.getPhotoIds()).containsExactly(firstPhotoId);
       CarWashHistory winning = historyRepository.findById(winningHistoryId).orElseThrow();
-      assertThat(winning.getSourceHistory(CarWashHistoryField.NAME).getId()).isEqualTo(winningHistoryId);
-      assertThat(winning.getSourceHistory(CarWashHistoryField.HIGH_PRESSURE_WATER_PRICE).getId()).isEqualTo(originalHistoryId);
+      assertThat(winning.getSourceHistory(Fields.NAME).getId()).isEqualTo(winningHistoryId);
+      assertThat(winning.getSourceHistory(Fields.HIGH_PRESSURE_WATER_PRICE).getId()).isEqualTo(originalHistoryId);
       assertThat(winning.getPhotoIds()).containsExactly(firstPhotoId, secondPhotoId);
       CarWashHistory lowerHistory = historyRepository.findById(lowerHistoryId).orElseThrow();
       assertThat(lowerHistory.getEvidencePhotoIds()).isEmpty();
@@ -235,12 +235,13 @@ class CarWashEndToEndIntegrationTest {
 
   private String snapshot(String name, String experience, double latitude, double longitude, Long baseId, Long photoId) {
     return """
-            {"name":"%s","address":"서울시","latitude":%s,"longitude":%s,"visitExperience":"%s",
-             "observedAt":"%s","highPressureWaterPrice":3000,"foamLanceAvailability":"AVAILABLE","foamGunPrice":4000,
-             "airGunAvailability":"AVAILABLE","airGunPrice":0,"vacuumAvailability":"AVAILABLE","vacuumPrice":1000,
-             "washBayCount":6,"dryingBayCount":10,"photoIds":%s%s}
-            """.formatted(name, latitude, longitude, experience, NOW.minusDays(1), photoId == null ? "[]" : "[" + photoId + "]",
-                          baseId == null ? "" : ",\"baseHistoryId\":" + baseId);
+            {"visitExperience":"%s","observedAt":"%s","photoIds":%s%s,
+             "information":{"name":"%s","address":"서울시","latitude":%s,"longitude":%s,
+                            "highPressureWaterPrice":3000,"foamLanceAvailability":"AVAILABLE","foamGunPrice":4000,
+                            "airGunAvailability":"AVAILABLE","airGunPrice":0,"vacuumAvailability":"AVAILABLE","vacuumPrice":1000,
+                            "washBayCount":6,"dryingBayCount":10}}
+            """.formatted(experience, NOW.minusDays(1), photoId == null ? "[]" : "[" + photoId + "]",
+                          baseId == null ? "" : ",\"baseHistoryId\":" + baseId, name, latitude, longitude);
   }
 
   private static Long id(String json, String path) {

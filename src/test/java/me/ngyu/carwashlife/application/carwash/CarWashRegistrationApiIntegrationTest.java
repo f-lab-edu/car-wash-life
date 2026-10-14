@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -47,21 +48,23 @@ class CarWashRegistrationApiIntegrationTest {
           OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private static final String REQUEST = """
           {
-            "name": "세차생활",
-            "address": "서울시 강남구",
-            "latitude": 37.5,
-            "longitude": 127.0,
             "visitExperience": "USED",
             "observedAt": "2026-10-06T12:00:00+09:00",
-            "highPressureWaterPrice": 3000,
-            "foamLanceAvailability": "AVAILABLE",
-            "foamGunPrice": 4000,
-            "airGunAvailability": "AVAILABLE",
-            "airGunPrice": 0,
-            "vacuumAvailability": "AVAILABLE",
-            "vacuumPrice": 1000,
-            "washBayCount": 6,
-            "dryingBayCount": 10
+            "information": {
+              "name": "세차생활",
+              "address": "서울시 강남구",
+              "latitude": 37.5,
+              "longitude": 127.0,
+              "highPressureWaterPrice": 3000,
+              "foamLanceAvailability": "AVAILABLE",
+              "foamGunPrice": 4000,
+              "airGunAvailability": "AVAILABLE",
+              "airGunPrice": 0,
+              "vacuumAvailability": "AVAILABLE",
+              "vacuumPrice": 1000,
+              "washBayCount": 6,
+              "dryingBayCount": 10
+            }
           }
           """;
 
@@ -129,15 +132,15 @@ class CarWashRegistrationApiIntegrationTest {
     assertThat(history.getLongitude()).isEqualTo(127.0);
     assertThat(history.getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(1));
     assertThat(history.getSubmittedAt()).isEqualTo(SUBMITTED_AT);
-    assertThat(history.getHighPressureWaterPrice()).isEqualTo(3000);
-    assertThat(history.getFoamLanceAvailability()).isEqualTo(FacilityAvailability.AVAILABLE);
-    assertThat(history.getFoamGunPrice()).isEqualTo(4000);
-    assertThat(history.getAirGunAvailability()).isEqualTo(FacilityAvailability.AVAILABLE);
-    assertThat(history.getAirGunPrice()).isZero();
-    assertThat(history.getVacuumAvailability()).isEqualTo(FacilityAvailability.AVAILABLE);
-    assertThat(history.getVacuumPrice()).isEqualTo(1000);
-    assertThat(history.getWashBayCount()).isEqualTo(6);
-    assertThat(history.getDryingBayCount()).isEqualTo(10);
+    assertThat(history)
+            .extracting(CarWashHistory::getFoamLanceAvailability, CarWashHistory::getAirGunAvailability, CarWashHistory::getVacuumAvailability)
+            .containsExactly(FacilityAvailability.AVAILABLE, FacilityAvailability.AVAILABLE, FacilityAvailability.AVAILABLE);
+    assertThat(history)
+            .extracting(CarWashHistory::getHighPressureWaterPrice, CarWashHistory::getFoamGunPrice, CarWashHistory::getAirGunPrice, CarWashHistory::getVacuumPrice)
+            .containsExactly(3000, 4000, 0, 1000);
+    assertThat(history)
+            .extracting(CarWashHistory::getWashBayCount, CarWashHistory::getDryingBayCount)
+            .containsExactly(6, 10);
   }
 
   @Test
@@ -147,23 +150,23 @@ class CarWashRegistrationApiIntegrationTest {
                             .header("Authorization", "Bearer " + token)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
-                                             {"name":"세차생활","latitude":37.5,"longitude":127.0,
-                                              "visitExperience":"NOT_USED","observedAt":"2026-10-06T12:00:00+09:00"}
+                                             {"visitExperience":"NOT_USED","observedAt":"2026-10-06T12:00:00+09:00",
+                                              "information":{"name":"세차생활","latitude":37.5,"longitude":127.0}}
                                              """))
            .andExpect(status().isCreated())
            .andExpect(jsonPath("$.confidence").value(2));
 
     CarWashHistory history = historyRepository.findAll().getFirst();
     assertThat(history.getAddress()).isNull();
-    assertThat(history.getFoamLanceAvailability()).isEqualTo(FacilityAvailability.UNKNOWN);
-    assertThat(history.getAirGunAvailability()).isEqualTo(FacilityAvailability.UNKNOWN);
-    assertThat(history.getVacuumAvailability()).isEqualTo(FacilityAvailability.UNKNOWN);
-    assertThat(history.getHighPressureWaterPrice()).isNull();
-    assertThat(history.getFoamGunPrice()).isNull();
-    assertThat(history.getAirGunPrice()).isNull();
-    assertThat(history.getVacuumPrice()).isNull();
-    assertThat(history.getWashBayCount()).isNull();
-    assertThat(history.getDryingBayCount()).isNull();
+    assertThat(history)
+            .extracting(CarWashHistory::getFoamLanceAvailability, CarWashHistory::getAirGunAvailability, CarWashHistory::getVacuumAvailability)
+            .containsExactly(FacilityAvailability.UNKNOWN, FacilityAvailability.UNKNOWN, FacilityAvailability.UNKNOWN);
+    assertThat(history)
+            .extracting(CarWashHistory::getHighPressureWaterPrice, CarWashHistory::getFoamGunPrice, CarWashHistory::getAirGunPrice, CarWashHistory::getVacuumPrice)
+            .containsOnlyNulls();
+    assertThat(history)
+            .extracting(CarWashHistory::getWashBayCount, CarWashHistory::getDryingBayCount)
+            .containsOnlyNulls();
   }
 
   @Test
@@ -187,6 +190,21 @@ class CarWashRegistrationApiIntegrationTest {
                             .content(request))
            .andExpect(status().isBadRequest())
            .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+    assertThat(carWashRepository.count()).isZero();
+    assertThat(historyRepository.count()).isZero();
+  }
+
+  @DisplayName("등록 요청의 상세정보가 생략되거나 null이면 원장과 이력을 저장하지 않고 거절한다.")
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @ValueSource(strings = {"", "null"})
+  void missingOrNullInformationCannotRegister(String information) throws Exception {
+    String request = "{\"visitExperience\":\"USED\",\"observedAt\":\"2026-10-06T12:00:00+09:00\""
+            + (information.isEmpty() ? "" : ",\"information\":null") + "}";
+
+    mockMvc.perform(post("/car-washes").header("Authorization", "Bearer " + token)
+                                       .contentType(MediaType.APPLICATION_JSON).content(request))
+           .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 
     assertThat(carWashRepository.count()).isZero();
     assertThat(historyRepository.count()).isZero();
@@ -217,9 +235,9 @@ class CarWashRegistrationApiIntegrationTest {
     );
   }
 
+  @DisplayName("사용 불가 시설에 가격을 입력하면 원장과 이력을 저장하지 않고 등록을 거절한다.")
   @Test
-  @DisplayName("사용 불가 시설에 가격을 입력하면 등록을 거절하고 먼저 저장한 원장도 롤백한다.")
-  void contradictoryFacilityPriceRollsBackTheAlreadySavedMaster() throws Exception {
+  void contradictoryFacilityPriceRejectsRegistrationWithoutSaving() throws Exception {
     mockMvc.perform(post("/car-washes")
                             .header("Authorization", "Bearer " + token)
                             .contentType(MediaType.APPLICATION_JSON)

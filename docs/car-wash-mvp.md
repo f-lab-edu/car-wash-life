@@ -16,36 +16,38 @@
 | `POST /car-wash-photos` | multipart `file`로 사진 선업로드 |
 | `GET /car-wash-photos/{photoId}` | 업로드한 사진 조회 |
 
-등록·수정 요청에는 이름, 위도·경도, `visitExperience`, `observedAt`을 입력한다. 경험 유형은 `NOT_USED`(미사용), `USED`(실제 이용)이며 관찰 시각은 시간대가 포함된 ISO 8601 형식이다. 제출 시각과 작성자는 서버에서 결정한다.
+등록·수정 요청의 `information`에 이름과 위도·경도 및 시설 정보를 입력하고, `visitExperience`, `observedAt`, `photoIds`는 요청 최상위에 둔다. 경험 유형은 `NOT_USED`(미사용), `USED`(실제 이용)이며 관찰 시각은 시간대가 포함된 ISO 8601 형식이다. 제출 시각과 작성자는 서버에서 결정한다.
 
 수정 요청은 `baseHistoryId`와 전체 정보 스냅샷을 제출한다. 주소·가격·베이 수의 생략 또는 `null`은 미확인으로 변경하며, 시설 여부의 생략 또는 `null`은 `UNKNOWN`으로 저장한다. 가격 0은 무료이고 `null`과 다르다. 에어건·청소기가 `UNAVAILABLE`이면 가격을 입력할 수 없다.
 
-서버는 기준 이력과 비교해 실제 변경 항목을 기록한다. 변경하지 않은 필드의 관찰 근거는 기준 이력에 연결된 원래 이력에서 찾는다. 같은 세차장의 과거 이력을 기준으로 수정할 수 있으며, 정보나 신규 사진이 바뀌지 않은 요청은 거절한다.
+서버는 기준 이력과 비교해 실제 변경 항목을 기록한다. 위도·경도는 `COORDINATES`라는 한 항목으로 추적하고 신규 사진은 `PHOTOS`로 기록한다. 변경하지 않은 필드의 관찰 근거는 기준 이력에 연결된 원래 이력에서 찾는다. 같은 세차장의 과거 이력을 기준으로 수정할 수 있으며, 정보나 신규 사진이 바뀌지 않은 요청은 거절한다.
 
 등록 요청 예시(관찰 시각과 사진 ID는 실제 값으로 입력):
 
 ```json
 {
-  "name": "세차생활 셀프세차장",
-  "address": "서울시 예시 주소",
-  "latitude": 37.5,
-  "longitude": 127.0,
   "visitExperience": "USED",
   "observedAt": "2026-10-06T12:00:00+09:00",
-  "highPressureWaterPrice": 3000,
-  "foamLanceAvailability": "AVAILABLE",
-  "foamGunPrice": 1000,
-  "airGunAvailability": "AVAILABLE",
-  "airGunPrice": 0,
-  "vacuumAvailability": "AVAILABLE",
-  "vacuumPrice": 1000,
-  "washBayCount": 8,
-  "dryingBayCount": 12,
-  "photoIds": []
+  "photoIds": [],
+  "information": {
+    "name": "세차생활 셀프세차장",
+    "address": "서울시 예시 주소",
+    "latitude": 37.5,
+    "longitude": 127.0,
+    "highPressureWaterPrice": 3000,
+    "foamLanceAvailability": "AVAILABLE",
+    "foamGunPrice": 1000,
+    "airGunAvailability": "AVAILABLE",
+    "airGunPrice": 0,
+    "vacuumAvailability": "AVAILABLE",
+    "vacuumPrice": 1000,
+    "washBayCount": 8,
+    "dryingBayCount": 12
+  }
 }
 ```
 
-수정은 위와 같은 전체 필드에 `baseHistoryId`를 추가하고 변경된 값을 입력한다. 상세 조회의 `historyId`를 기준 이력 ID로 사용할 수 있다. 응답의 `historyId`는 제출한 이력의 ID이며, 해당 이력이 항상 대표로 선택되는 것은 아니다. 현재 대표는 상세 조회로 확인한다.
+수정은 요청 최상위에 `baseHistoryId`를 추가하고 `information` 전체와 변경된 값을 제출한다. 상세 조회의 `historyId`를 기준 이력 ID로 사용할 수 있다. 응답의 `historyId`는 제출한 이력의 ID이며, 해당 이력이 항상 대표로 선택되는 것은 아니다. 현재 대표는 상세 조회로 확인한다.
 
 사진을 먼저 올리려면 로그인 응답의 `accessToken`을 사용한다.
 
