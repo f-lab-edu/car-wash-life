@@ -15,8 +15,7 @@ public class CarWashRepresentativeService {
   private final CarWashRepresentativePolicy representativePolicy;
 
   public CarWashRepresentativePolicy.Selection selectAndReflect(CarWash carWash, OffsetDateTime evaluatedAt) {
-    CarWashRepresentativePolicy.Selection selection = representativePolicy.select(
-            historyRepository.findAllByCarWashId(carWash.getId()), evaluatedAt);
+    CarWashRepresentativePolicy.Selection selection = representativePolicy.select(historyRepository.findAllByCarWashId(carWash.getId()), evaluatedAt);
     carWash.selectRepresentativeHistory(selection.history(), evaluatedAt);
     return selection;
   }

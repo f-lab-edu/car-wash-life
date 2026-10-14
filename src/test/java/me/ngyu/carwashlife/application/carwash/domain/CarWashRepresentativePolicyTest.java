@@ -14,7 +14,7 @@ class CarWashRepresentativePolicyTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private final CarWashRepresentativePolicy policy = new CarWashRepresentativePolicy(new CarWashConfidencePolicy());
-  private final CarWash carWash = CarWash.create("세차생활", 37.5, 127.0, NOW.minusDays(200));
+  private final CarWash carWash = CarWash.create("세차생활", new Coordinates(37.5, 127.0), NOW.minusDays(200));
 
   @DisplayName("관찰 시점이 더 늦은 이력이 있어도 신뢰도가 가장 높은 이력을 대표로 선택한다.")
   @Test
@@ -93,10 +93,8 @@ class CarWashRepresentativePolicyTest {
   }
 
   private CarWashHistory history(Long id, VisitExperience experience, OffsetDateTime observedAt, OffsetDateTime submittedAt) {
-    CarWashHistory history = CarWashHistory.builder().carWash(carWash).memberId(1L)
-                                           .type(CarWashHistoryType.REGISTRATION).visitExperience(experience)
-                                           .observedAt(observedAt).submittedAt(submittedAt)
-                                           .name("세차생활").latitude(37.5).longitude(127.0).build();
+    CarWashHistory history = CarWashHistory.register(carWash, 1L, experience, observedAt, submittedAt,
+                                                     CarWashInformation.builder().name("세차생활").coordinates(new Coordinates(37.5, 127.0)).build());
     ReflectionTestUtils.setField(history, "id", id);
     return history;
   }

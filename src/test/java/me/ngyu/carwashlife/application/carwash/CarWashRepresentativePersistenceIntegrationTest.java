@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import me.ngyu.carwashlife.application.carwash.api.dto.CarWashInformationDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
@@ -125,12 +126,12 @@ class CarWashRepresentativePersistenceIntegrationTest {
   }
 
   private RegisterCarWashDto.Request registration(String name) {
-    return new RegisterCarWashDto.Request(name, null, 37.5, 127.0, VisitExperience.NOT_USED, NOW.minusDays(100),
-                                          null, null, null, null, null, null, null, null, null);
+    return new RegisterCarWashDto.Request(VisitExperience.NOT_USED, NOW.minusDays(100),
+                                          new CarWashInformationDto.Request(name, null, 37.5, 127.0, null, null, null, null, null, null, null, null, null));
   }
 
   private ModifyCarWashDto.Request modification(String name, double latitude, OffsetDateTime observedAt) {
-    return new ModifyCarWashDto.Request(original.historyId(), name, null, latitude, 127.0, VisitExperience.USED, observedAt,
-                                        null, null, null, null, null, null, null, null, null);
+    return new ModifyCarWashDto.Request(original.historyId(), VisitExperience.USED, observedAt,
+                                        new CarWashInformationDto.Request(name, null, latitude, 127.0, null, null, null, null, null, null, null, null, null));
   }
 }

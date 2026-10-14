@@ -7,7 +7,7 @@ import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashConfidencePolicy;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashHistoryType;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -43,37 +43,18 @@ public class CarWashModificationService {
     CarWashHistory baseHistory = historyRepository.findById(request.baseHistoryId())
                                                   .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_HISTORY_NOT_FOUND));
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
+    CarWashHistory history;
+    int confidence;
     try {
-      int confidence = confidencePolicy.evaluate(
-              request.visitExperience(), request.observedAt(), false, submittedAt);
-      CarWashHistory history = historyRepository.save(CarWashHistory.builder()
-                                                                    .carWash(carWash)
-                                                                    .baseHistory(baseHistory)
-                                                                    .memberId(member.getId())
-                                                                    .type(CarWashHistoryType.MODIFICATION)
-                                                                    .visitExperience(request.visitExperience())
-                                                                    .observedAt(request.observedAt())
-                                                                    .submittedAt(submittedAt)
-                                                                    .name(request.name())
-                                                                    .address(request.address())
-                                                                    .latitude(request.latitude())
-                                                                    .longitude(request.longitude())
-                                                                    .highPressureWaterPrice(request.highPressureWaterPrice())
-                                                                    .foamLanceAvailability(request.foamLanceAvailability())
-                                                                    .foamGunPrice(request.foamGunPrice())
-                                                                    .airGunAvailability(request.airGunAvailability())
-                                                                    .airGunPrice(request.airGunPrice())
-                                                                    .vacuumAvailability(request.vacuumAvailability())
-                                                                    .vacuumPrice(request.vacuumPrice())
-                                                                    .washBayCount(request.washBayCount())
-                                                                    .dryingBayCount(request.dryingBayCount())
-                                                                    .build());
-      representativeService.selectAndReflect(carWash, submittedAt);
-      return new ModifyCarWashDto.Response(
-              carWash.getId(), history.getId(), baseHistory.getId(), history.getChangedFields(),
-              confidence, submittedAt);
+      CarWashInformation information = request.information().toDomain();
+      confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), false, submittedAt);
+      history = CarWashHistory.modify(carWash, baseHistory, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information);
     } catch (IllegalArgumentException exception) {
-      throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
+      throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
+
+    historyRepository.save(history);
+    representativeService.selectAndReflect(carWash, submittedAt);
+    return new ModifyCarWashDto.Response(carWash.getId(), history.getId(), baseHistory.getId(), history.getChangedFields(), confidence, submittedAt);
   }
 }
