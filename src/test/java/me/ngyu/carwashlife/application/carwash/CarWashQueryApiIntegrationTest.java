@@ -288,5 +288,15 @@ class CarWashQueryApiIntegrationTest {
     public Instant instant() {
       return instant.get();
     }
+
+    @Override
+    public boolean equals(Object other) {
+      return this == other;
+    }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(this);
+    }
   }
 }
