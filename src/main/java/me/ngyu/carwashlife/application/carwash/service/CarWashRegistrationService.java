@@ -39,17 +39,21 @@ public class CarWashRegistrationService {
     }
 
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
+    CarWash carWash;
+    CarWashHistory history;
+    int confidence;
     try {
       CarWashInformation information = request.information().toDomain();
-      int confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), false, submittedAt);
-      CarWash carWash = CarWash.create(information.name(), information.coordinates(), submittedAt);
-      CarWashHistory history = CarWashHistory.register(carWash, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information);
-      carWashRepository.save(carWash);
-      historyRepository.save(history);
-      carWash.selectRepresentativeHistory(history, submittedAt);
-      return new RegisterCarWashDto.Response(carWash.getId(), history.getId(), confidence, submittedAt);
+      confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), false, submittedAt);
+      carWash = CarWash.create(information.name(), information.coordinates(), submittedAt);
+      history = CarWashHistory.register(carWash, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information);
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
+
+    carWashRepository.save(carWash);
+    historyRepository.save(history);
+    carWash.selectRepresentativeHistory(history, submittedAt);
+    return new RegisterCarWashDto.Response(carWash.getId(), history.getId(), confidence, submittedAt);
   }
 }

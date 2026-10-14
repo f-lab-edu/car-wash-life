@@ -42,16 +42,17 @@ public class CarWashModificationService {
     CarWashHistory baseHistory = historyRepository.findById(request.baseHistoryId())
                                                   .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_HISTORY_NOT_FOUND));
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
+    CarWashHistory history;
+    int confidence;
     try {
       CarWashInformation information = request.information().toDomain();
-      int confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), false, submittedAt);
-      CarWashHistory history = historyRepository.save(CarWashHistory.modify(
-              carWash, baseHistory, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information));
-      return new ModifyCarWashDto.Response(
-              carWash.getId(), history.getId(), baseHistory.getId(), history.getChangedFields(),
-              confidence, submittedAt);
+      confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), false, submittedAt);
+      history = CarWashHistory.modify(carWash, baseHistory, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information);
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
+
+    historyRepository.save(history);
+    return new ModifyCarWashDto.Response(carWash.getId(), history.getId(), baseHistory.getId(), history.getChangedFields(), confidence, submittedAt);
   }
 }
