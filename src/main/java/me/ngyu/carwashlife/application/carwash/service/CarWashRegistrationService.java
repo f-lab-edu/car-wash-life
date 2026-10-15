@@ -5,7 +5,6 @@ import java.time.OffsetDateTime;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashConfidencePolicy;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
 import me.ngyu.carwashlife.application.member.domain.Member;
@@ -24,7 +23,6 @@ public class CarWashRegistrationService {
   private final CarWashRepository carWashRepository;
   private final CarWashHistoryRepository historyRepository;
   private final MemberRepository memberRepository;
-  private final CarWashConfidencePolicy confidencePolicy;
   private final Clock clock;
 
   @Transactional
@@ -41,16 +39,15 @@ public class CarWashRegistrationService {
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
     CarWash carWash;
     CarWashHistory history;
-    int confidence;
     try {
       CarWashInformation information = request.information().toDomain();
-      confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), false, submittedAt);
       carWash = CarWash.create(information.name(), information.coordinates(), submittedAt);
       history = CarWashHistory.register(carWash, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information);
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
 
+    int confidence = history.calculateConfidence(false, submittedAt);
     carWashRepository.save(carWash);
     historyRepository.save(history);
     carWash.selectRepresentativeHistory(history, submittedAt);
