@@ -64,8 +64,8 @@ class AuthApiIntegrationTest {
     memberRepository.deleteAll();
   }
 
-  @Test
   @DisplayName("회원가입하면 이메일을 정규화하고 비밀번호 해시와 회원 정보를 저장한다.")
+  @Test
   void signupStoresRequiredAndOptionalMemberInformation() throws Exception {
     mockMvc.perform(post("/auth/signup")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -84,8 +84,8 @@ class AuthApiIntegrationTest {
     assertThat(member.isEmailVerified()).isTrue();
   }
 
-  @Test
   @DisplayName("이미 가입한 이메일로 회원가입하면 중복 오류를 반환한다.")
+  @Test
   void signupRejectsDuplicateEmail() throws Exception {
     signup();
 
@@ -96,8 +96,8 @@ class AuthApiIntegrationTest {
            .andExpect(jsonPath("$.code").value("DUPLICATE_EMAIL"));
   }
 
-  @Test
   @DisplayName("이메일이나 비밀번호가 올바르지 않으면 회원가입을 거절한다.")
+  @Test
   void signupRejectsInvalidRequest() throws Exception {
     mockMvc.perform(post("/auth/signup")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -106,8 +106,8 @@ class AuthApiIntegrationTest {
            .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
   }
 
-  @Test
   @DisplayName("로그인하면 회원 식별자와 만료 시각을 담은 24시간 액세스 토큰을 발급한다.")
+  @Test
   void loginIssuesAccessTokenValidForTwentyFourHours() throws Exception {
     Member member = signup();
     long issuedAfter = Instant.now().getEpochSecond();
@@ -142,8 +142,8 @@ class AuthApiIntegrationTest {
     );
   }
 
-  @Test
   @DisplayName("비밀번호가 일치하지 않으면 로그인을 거절한다.")
+  @Test
   void loginRejectsInvalidCredentials() throws Exception {
     signup();
 
@@ -154,8 +154,8 @@ class AuthApiIntegrationTest {
            .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
   }
 
-  @Test
   @DisplayName("정지된 회원이 로그인하면 비활성 계정 오류를 반환한다.")
+  @Test
   void loginRejectsInactiveAccount() throws Exception {
     Member member = signup();
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", member.getId());
@@ -167,8 +167,8 @@ class AuthApiIntegrationTest {
            .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
   }
 
-  @Test
   @DisplayName("발급한 토큰으로 인증하면 요청에서 회원 식별자를 확인한다.")
+  @Test
   void bearerTokenProvidesMemberIdToAuthenticatedRequests() throws Exception {
     signup();
     MvcResult loginResult = mockMvc.perform(post("/auth/login")
