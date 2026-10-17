@@ -67,6 +67,15 @@ public class CarWashPhotoValidator {
 
   public record ValidatedPhoto(byte[] content, String contentType) {
 
+    public ValidatedPhoto {
+      content = content.clone();
+    }
+
+    @Override
+    public byte[] content() {
+      return content.clone();
+    }
+
     @Override
     public boolean equals(Object other) {
       return other instanceof ValidatedPhoto photo && Arrays.equals(content, photo.content) && Objects.equals(contentType, photo.contentType);

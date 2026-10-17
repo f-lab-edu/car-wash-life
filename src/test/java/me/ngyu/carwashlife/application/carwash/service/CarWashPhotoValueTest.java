@@ -34,6 +34,38 @@ class CarWashPhotoValueTest {
   }
 
   @Test
+  @DisplayName("조회 사진은 원본이나 반환 배열을 변경해도 내용과 동등성 및 해시를 유지한다.")
+  void photoContentCannotBeChangedThroughSharedArrays() {
+    byte[] source = new byte[]{1, 2};
+    var photo = new CarWashPhotoService.PhotoContent(source, "image/png");
+    var same = new CarWashPhotoService.PhotoContent(new byte[]{1, 2}, "image/png");
+    int originalHashCode = photo.hashCode();
+
+    source[0] = 9;
+    photo.content()[1] = 9;
+
+    assertThat(photo.content()).containsExactly((byte) 1, (byte) 2);
+    assertThat(photo).isEqualTo(same);
+    assertThat(photo.hashCode()).isEqualTo(originalHashCode);
+  }
+
+  @Test
+  @DisplayName("검증한 사진은 원본이나 반환 배열을 변경해도 내용과 동등성 및 해시를 유지한다.")
+  void validatedPhotoCannotBeChangedThroughSharedArrays() {
+    byte[] source = new byte[]{1, 2};
+    var photo = new CarWashPhotoValidator.ValidatedPhoto(source, "image/png");
+    var same = new CarWashPhotoValidator.ValidatedPhoto(new byte[]{1, 2}, "image/png");
+    int originalHashCode = photo.hashCode();
+
+    source[0] = 9;
+    photo.content()[1] = 9;
+
+    assertThat(photo.content()).containsExactly((byte) 1, (byte) 2);
+    assertThat(photo).isEqualTo(same);
+    assertThat(photo.hashCode()).isEqualTo(originalHashCode);
+  }
+
+  @Test
   @DisplayName("조회 사진을 문자열로 표현하면 배열 주소 대신 내용과 파일 형식을 표시한다.")
   void photoContentStringShowsArrayContents() {
     var photo = new CarWashPhotoService.PhotoContent(new byte[]{1, 2}, "image/png");

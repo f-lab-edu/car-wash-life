@@ -39,9 +39,10 @@ public class CarWashPhotoService {
   public CarWashPhotoDto.Response upload(Long memberId, MultipartFile file) {
     requireActiveMember(memberId);
     CarWashPhotoValidator.ValidatedPhoto photo = validator.validate(file);
+    byte[] content = photo.content();
     String key;
     try {
-      key = storage.write(photo.content());
+      key = storage.write(content);
     } catch (IOException exception) {
       throw new ApplicationException(ErrorCode.PHOTO_STORAGE_ERROR, exception);
     }
@@ -57,7 +58,7 @@ public class CarWashPhotoService {
         }
       }
     });
-    CarWashPhoto saved = photoRepository.save(CarWashPhoto.create(memberId, key, photo.contentType(), photo.content().length, OffsetDateTime.now(clock)));
+    CarWashPhoto saved = photoRepository.save(CarWashPhoto.create(memberId, key, photo.contentType(), content.length, OffsetDateTime.now(clock)));
     return new CarWashPhotoDto.Response(saved.getId(), url(saved.getId()));
   }
 
@@ -129,6 +130,15 @@ public class CarWashPhotoService {
   }
 
   public record PhotoContent(byte[] content, String contentType) {
+
+    public PhotoContent {
+      content = content.clone();
+    }
+
+    @Override
+    public byte[] content() {
+      return content.clone();
+    }
 
     @Override
     public boolean equals(Object other) {
