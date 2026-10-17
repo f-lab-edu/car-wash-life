@@ -2,7 +2,6 @@ package me.ngyu.carwashlife.common.config;
 
 import java.time.Clock;
 import java.time.ZoneId;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashConfidencePolicy;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashRepresentativePolicy;
 import me.ngyu.carwashlife.application.carwash.service.CarWashPhotoStorage;
 import me.ngyu.carwashlife.infrastructure.storage.LocalCarWashPhotoStorage;
@@ -19,13 +18,8 @@ public class CarWashConfig {
   }
 
   @Bean
-  public CarWashConfidencePolicy carWashConfidencePolicy() {
-    return new CarWashConfidencePolicy();
-  }
-
-  @Bean
-  public CarWashRepresentativePolicy carWashRepresentativePolicy(CarWashConfidencePolicy confidencePolicy) {
-    return new CarWashRepresentativePolicy(confidencePolicy);
+  public CarWashRepresentativePolicy carWashRepresentativePolicy() {
+    return new CarWashRepresentativePolicy();
   }
 
   @Bean

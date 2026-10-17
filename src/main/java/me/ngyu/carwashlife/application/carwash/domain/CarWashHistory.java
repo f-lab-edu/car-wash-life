@@ -15,6 +15,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -248,6 +249,23 @@ public class CarWashHistory {
   }
 
   protected CarWashHistory() {
+  }
+
+  public int calculateConfidence(boolean hasEvidencePhoto,
+                                 OffsetDateTime evaluatedAt) {
+    Objects.requireNonNull(evaluatedAt, "평가 시점은 필수입니다.");
+
+    int confidence = 1;
+    if (visitExperience == VisitExperience.USED) {
+      confidence += 2;
+    }
+    if (!observedAt.toInstant().isBefore(evaluatedAt.toInstant().minus(90, ChronoUnit.DAYS))) {
+      confidence++;
+    }
+    if (hasEvidencePhoto) {
+      confidence++;
+    }
+    return confidence;
   }
 
   public double getLatitude() {

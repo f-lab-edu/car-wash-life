@@ -6,7 +6,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashConfidencePolicy;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
@@ -26,7 +25,6 @@ public class CarWashModificationService {
   private final CarWashRepository carWashRepository;
   private final CarWashHistoryRepository historyRepository;
   private final MemberRepository memberRepository;
-  private final CarWashConfidencePolicy confidencePolicy;
   private final CarWashRepresentativeService representativeService;
   private final CarWashPhotoService photoService;
   private final Clock clock;
@@ -48,16 +46,15 @@ public class CarWashModificationService {
     List<CarWashPhoto> photos = photoService.lockPendingPhotos(member.getId(), request.photoIds());
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
     CarWashHistory history;
-    int confidence;
     try {
       CarWashInformation information = request.information().toDomain();
-      confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), !photos.isEmpty(), submittedAt);
       history = CarWashHistory.modify(carWash, baseHistory, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information,
                                       photos.stream().map(CarWashPhoto::getId).toList());
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
 
+    int confidence = history.calculateConfidence(history.hasEvidencePhotos(), submittedAt);
     historyRepository.save(history);
     photoService.attachPhotos(photos, history);
     representativeService.selectAndReflect(carWash, submittedAt);
