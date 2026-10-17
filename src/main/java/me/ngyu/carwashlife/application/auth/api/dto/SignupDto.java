@@ -11,15 +11,15 @@ public class SignupDto {
   private SignupDto() {
   }
 
-  public record Request(
-      @NotBlank @Email String email,
-      @NotBlank String password,
-      String residenceRegionCode,
-      VehicleType vehicleType,
-      WashExperience washExperience
-  ) {
+  public record Request(@NotBlank @Email String email,
+                        @NotBlank String password,
+                        String residenceRegionCode,
+                        VehicleType vehicleType,
+                        WashExperience washExperience) {
+
   }
 
   public record Response(Long memberId, String email, OffsetDateTime createdAt) {
+
   }
 }
