@@ -5,7 +5,6 @@ import java.time.OffsetDateTime;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashConfidencePolicy;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
 import me.ngyu.carwashlife.application.member.domain.Member;
@@ -24,7 +23,6 @@ public class CarWashModificationService {
   private final CarWashRepository carWashRepository;
   private final CarWashHistoryRepository historyRepository;
   private final MemberRepository memberRepository;
-  private final CarWashConfidencePolicy confidencePolicy;
   private final CarWashRepresentativeService representativeService;
   private final Clock clock;
 
@@ -44,15 +42,14 @@ public class CarWashModificationService {
                                                   .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_HISTORY_NOT_FOUND));
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
     CarWashHistory history;
-    int confidence;
     try {
       CarWashInformation information = request.information().toDomain();
-      confidence = confidencePolicy.evaluate(request.visitExperience(), request.observedAt(), false, submittedAt);
       history = CarWashHistory.modify(carWash, baseHistory, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information);
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
 
+    int confidence = history.calculateConfidence(false, submittedAt);
     historyRepository.save(history);
     representativeService.selectAndReflect(carWash, submittedAt);
     return new ModifyCarWashDto.Response(carWash.getId(), history.getId(), baseHistory.getId(), history.getChangedFields(), confidence, submittedAt);

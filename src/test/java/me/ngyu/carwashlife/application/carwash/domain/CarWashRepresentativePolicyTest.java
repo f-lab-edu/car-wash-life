@@ -13,7 +13,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class CarWashRepresentativePolicyTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
-  private final CarWashRepresentativePolicy policy = new CarWashRepresentativePolicy(new CarWashConfidencePolicy());
+  private final CarWashRepresentativePolicy policy = new CarWashRepresentativePolicy();
   private final CarWash carWash = CarWash.create("세차생활", new Coordinates(37.5, 127.0), NOW.minusDays(200));
 
   @DisplayName("관찰 시점이 더 늦은 이력이 있어도 신뢰도가 가장 높은 이력을 대표로 선택한다.")
