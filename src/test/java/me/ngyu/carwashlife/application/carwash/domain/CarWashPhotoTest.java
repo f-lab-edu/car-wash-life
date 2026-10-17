@@ -48,6 +48,8 @@ class CarWashPhotoTest {
 
     assertThat(next.getPhotoIds()).containsExactly(10L);
     assertThat(next.hasEvidencePhotos()).isFalse();
+    assertThat(original.calculateConfidence(NOW)).isEqualTo(5);
+    assertThat(next.calculateConfidence(NOW)).isEqualTo(4);
     assertThat(next.getSourceHistory(Fields.PHOTOS)).isSameAs(original);
     assertThatThrownBy(() -> next.getPhotoIds().clear()).isInstanceOf(UnsupportedOperationException.class);
   }
@@ -63,6 +65,7 @@ class CarWashPhotoTest {
     assertThat(next.getEvidencePhotoIds()).containsExactly(20L);
     assertThat(next.getChangedFields()).containsExactly(Fields.PHOTOS);
     assertThat(next.hasEvidencePhotos()).isTrue();
+    assertThat(next.calculateConfidence(NOW)).isEqualTo(5);
     assertThat(original.getPhotoIds()).containsExactly(10L);
   }
 

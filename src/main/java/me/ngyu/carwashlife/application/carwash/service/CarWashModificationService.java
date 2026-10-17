@@ -54,7 +54,7 @@ public class CarWashModificationService {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
 
-    int confidence = history.calculateConfidence(history.hasEvidencePhotos(), submittedAt);
+    int confidence = history.calculateConfidence(submittedAt);
     historyRepository.save(history);
     photoService.attachPhotos(photos, history);
     representativeService.selectAndReflect(carWash, submittedAt);

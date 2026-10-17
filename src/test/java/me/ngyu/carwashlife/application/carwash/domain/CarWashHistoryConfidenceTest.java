@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,9 +24,9 @@ class CarWashHistoryConfidenceTest {
           "USED, 91, true, 4", "USED, 90, true, 5"
   })
   void scoresExperienceRecencyAndEvidencePhoto(VisitExperience experience, int daysAgo, boolean hasPhoto, int expectedConfidence) {
-    CarWashHistory history = history(experience, evaluatedAt.minusDays(daysAgo));
+    CarWashHistory history = history(experience, evaluatedAt.minusDays(daysAgo), hasPhoto);
 
-    int confidence = history.calculateConfidence(hasPhoto, evaluatedAt);
+    int confidence = history.calculateConfidence(evaluatedAt);
 
     assertThat(confidence).isEqualTo(expectedConfidence);
   }
@@ -33,7 +34,7 @@ class CarWashHistoryConfidenceTest {
   @DisplayName("관찰 시점과 평가 시점이 같으면 최근성 점수를 가산한다.")
   @Test
   void anObservationAtEvaluationTimeIsRecent() {
-    assertThat(history(VisitExperience.USED, evaluatedAt).calculateConfidence(false, evaluatedAt))
+    assertThat(history(VisitExperience.USED, evaluatedAt).calculateConfidence(evaluatedAt))
             .isEqualTo(4);
   }
 
@@ -42,7 +43,7 @@ class CarWashHistoryConfidenceTest {
   void anObservationJustOutsideNinetyDaysLosesRecencyPoint() {
     OffsetDateTime observedAt = evaluatedAt.minusDays(90).minusNanos(1);
 
-    assertThat(history(VisitExperience.USED, observedAt).calculateConfidence(false, evaluatedAt))
+    assertThat(history(VisitExperience.USED, observedAt).calculateConfidence(evaluatedAt))
             .isEqualTo(3);
   }
 
@@ -52,7 +53,7 @@ class CarWashHistoryConfidenceTest {
     OffsetDateTime observedAt = evaluatedAt.minusDays(90)
                                            .withOffsetSameInstant(ZoneOffset.ofHours(-7));
 
-    assertThat(history(VisitExperience.USED, observedAt).calculateConfidence(false, evaluatedAt))
+    assertThat(history(VisitExperience.USED, observedAt).calculateConfidence(evaluatedAt))
             .isEqualTo(4);
   }
 
@@ -61,8 +62,8 @@ class CarWashHistoryConfidenceTest {
   void confidenceUsesTheGivenEvaluationTime() {
     CarWashHistory history = history(VisitExperience.USED, evaluatedAt.minusDays(90));
 
-    assertThat(history.calculateConfidence(false, evaluatedAt)).isEqualTo(4);
-    assertThat(history.calculateConfidence(false, evaluatedAt.plusNanos(1))).isEqualTo(3);
+    assertThat(history.calculateConfidence(evaluatedAt)).isEqualTo(4);
+    assertThat(history.calculateConfidence(evaluatedAt.plusNanos(1))).isEqualTo(3);
   }
 
   @DisplayName("평가 시점이 없으면 신뢰도 계산을 거절한다.")
@@ -70,14 +71,20 @@ class CarWashHistoryConfidenceTest {
   void evaluationTimeIsRequired() {
     CarWashHistory history = history(VisitExperience.USED, evaluatedAt);
 
-    assertThatThrownBy(() -> history.calculateConfidence(false, null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> history.calculateConfidence(null)).isInstanceOf(NullPointerException.class);
   }
 
   private CarWashHistory history(VisitExperience experience,
                                  OffsetDateTime observedAt) {
+    return history(experience, observedAt, false);
+  }
+
+  private CarWashHistory history(VisitExperience experience,
+                                 OffsetDateTime observedAt,
+                                 boolean hasPhoto) {
     Coordinates coordinates = new Coordinates(37.5, 127.0);
     CarWash carWash = CarWash.create("세차생활", coordinates, evaluatedAt);
     CarWashInformation information = CarWashInformation.builder().name("세차생활").coordinates(coordinates).build();
-    return CarWashHistory.register(carWash, 1L, experience, observedAt, evaluatedAt, information);
+    return CarWashHistory.register(carWash, 1L, experience, observedAt, evaluatedAt, information, hasPhoto ? List.of(1L) : List.of());
   }
 }

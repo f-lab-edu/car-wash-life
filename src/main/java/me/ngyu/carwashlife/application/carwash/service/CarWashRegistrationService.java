@@ -52,7 +52,7 @@ public class CarWashRegistrationService {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
 
-    int confidence = history.calculateConfidence(history.hasEvidencePhotos(), submittedAt);
+    int confidence = history.calculateConfidence(submittedAt);
     carWashRepository.save(carWash);
     historyRepository.save(history);
     photoService.attachPhotos(photos, history);

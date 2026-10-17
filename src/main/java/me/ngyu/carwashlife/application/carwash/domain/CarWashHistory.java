@@ -251,8 +251,7 @@ public class CarWashHistory {
   protected CarWashHistory() {
   }
 
-  public int calculateConfidence(boolean hasEvidencePhoto,
-                                 OffsetDateTime evaluatedAt) {
+  public int calculateConfidence(OffsetDateTime evaluatedAt) {
     Objects.requireNonNull(evaluatedAt, "평가 시점은 필수입니다.");
 
     int confidence = 1;
@@ -262,7 +261,7 @@ public class CarWashHistory {
     if (!observedAt.toInstant().isBefore(evaluatedAt.toInstant().minus(90, ChronoUnit.DAYS))) {
       confidence++;
     }
-    if (hasEvidencePhoto) {
+    if (hasEvidencePhotos()) {
       confidence++;
     }
     return confidence;
