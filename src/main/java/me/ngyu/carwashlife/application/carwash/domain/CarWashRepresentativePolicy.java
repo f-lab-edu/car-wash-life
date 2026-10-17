@@ -11,7 +11,7 @@ public class CarWashRepresentativePolicy {
       throw new IllegalArgumentException("대표 정보는 저장된 이력에서 선택합니다.");
     }
     return histories.stream()
-                    .map(history -> new Selection(history, history.calculateConfidence(false, evaluatedAt)))
+                    .map(history -> new Selection(history, history.calculateConfidence(evaluatedAt)))
                     .max(Comparator.comparingInt(Selection::confidence)
                                    .thenComparing(selection -> selection.history().getObservedAt().toInstant())
                                    .thenComparing(selection -> selection.history().getSubmittedAt().toInstant())

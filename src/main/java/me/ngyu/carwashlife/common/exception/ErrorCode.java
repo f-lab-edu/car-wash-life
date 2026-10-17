@@ -9,6 +9,9 @@ public enum ErrorCode {
   AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
   CAR_WASH_NOT_FOUND(HttpStatus.NOT_FOUND, "세차장을 찾을 수 없습니다."),
   CAR_WASH_HISTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "세차장 이력을 찾을 수 없습니다."),
+  CAR_WASH_PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "사진을 찾을 수 없습니다."),
+  PHOTO_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "사진은 5MiB 이하여야 합니다."),
+  PHOTO_STORAGE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "사진을 저장하거나 불러올 수 없습니다."),
   ACCOUNT_NOT_ACTIVE(HttpStatus.FORBIDDEN, "활성 상태가 아닌 계정입니다.");
 
   private final HttpStatus status;

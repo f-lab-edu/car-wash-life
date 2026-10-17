@@ -2,11 +2,13 @@ package me.ngyu.carwashlife.application.carwash.service;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -24,6 +26,7 @@ public class CarWashModificationService {
   private final CarWashHistoryRepository historyRepository;
   private final MemberRepository memberRepository;
   private final CarWashRepresentativeService representativeService;
+  private final CarWashPhotoService photoService;
   private final Clock clock;
 
   @Transactional
@@ -40,17 +43,20 @@ public class CarWashModificationService {
                                        .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_NOT_FOUND));
     CarWashHistory baseHistory = historyRepository.findById(request.baseHistoryId())
                                                   .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_HISTORY_NOT_FOUND));
+    List<CarWashPhoto> photos = photoService.lockPendingPhotos(member.getId(), request.photoIds());
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
     CarWashHistory history;
     try {
       CarWashInformation information = request.information().toDomain();
-      history = CarWashHistory.modify(carWash, baseHistory, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information);
+      history = CarWashHistory.modify(carWash, baseHistory, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information,
+                                      photos.stream().map(CarWashPhoto::getId).toList());
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
 
-    int confidence = history.calculateConfidence(false, submittedAt);
+    int confidence = history.calculateConfidence(submittedAt);
     historyRepository.save(history);
+    photoService.attachPhotos(photos, history);
     representativeService.selectAndReflect(carWash, submittedAt);
     return new ModifyCarWashDto.Response(carWash.getId(), history.getId(), baseHistory.getId(), history.getChangedFields(), confidence, submittedAt);
   }

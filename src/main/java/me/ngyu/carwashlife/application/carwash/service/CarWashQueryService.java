@@ -21,6 +21,7 @@ public class CarWashQueryService {
   private final CarWashRepository carWashRepository;
   private final MemberRepository memberRepository;
   private final CarWashRepresentativeService representativeService;
+  private final CarWashPhotoService photoService;
   private final Clock clock;
 
   @Transactional
@@ -36,6 +37,6 @@ public class CarWashQueryService {
     CarWash carWash = carWashRepository.findByIdForUpdate(carWashId)
                                        .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_NOT_FOUND));
     CarWashRepresentativePolicy.Selection selection = representativeService.selectAndReflect(carWash, OffsetDateTime.now(clock));
-    return CarWashDetailDto.Response.from(carWash, selection);
+    return CarWashDetailDto.Response.from(carWash, selection, photoService.snapshots(selection.history()));
   }
 }

@@ -26,8 +26,8 @@ class CarWashHistoryTest {
     assertThat(history.getCoordinates()).isEqualTo(new Coordinates(37.5, 127.0));
   }
 
-  @DisplayName("이력에서 입력하지 않은 시설과 가격 및 베이 수는 미확인 상태로 유지한다.")
   @Test
+  @DisplayName("이력에서 입력하지 않은 시설과 가격 및 베이 수는 미확인 상태로 유지한다.")
   void unspecifiedFacilitiesPricesAndBayCountsRemainUnknown() {
     CarWashHistory history = registration();
 
@@ -42,8 +42,8 @@ class CarWashHistoryTest {
     assertThat(history.getDryingBayCount()).isNull();
   }
 
-  @DisplayName("이력의 시설과 가격 및 베이 수는 제보한 값으로 저장한다.")
   @Test
+  @DisplayName("이력의 시설과 가격 및 베이 수는 제보한 값으로 저장한다.")
   void facilityPricesAndBayCountsAreStoredAsReported() {
     CarWashHistory history = CarWashHistory.register(carWash, 1L, VisitExperience.NOT_USED, SUBMITTED_AT, SUBMITTED_AT,
                                                      information()
@@ -68,8 +68,8 @@ class CarWashHistoryTest {
     assertThat(history.getDryingBayCount()).isEqualTo(10);
   }
 
-  @DisplayName("이력의 관찰 시점과 제출 시점을 작성자 및 경험 유형과 함께 구분하여 저장한다.")
   @Test
+  @DisplayName("이력의 관찰 시점과 제출 시점을 작성자 및 경험 유형과 함께 구분하여 저장한다.")
   void observationAndSubmissionTimesAreKeptSeparate() {
     OffsetDateTime observedAt = SUBMITTED_AT.minusDays(2);
     CarWashHistory history = CarWashHistory.register(carWash, 1L, VisitExperience.NOT_USED, observedAt, SUBMITTED_AT,
@@ -81,16 +81,16 @@ class CarWashHistoryTest {
     assertThat(history.getVisitExperience()).isEqualTo(VisitExperience.NOT_USED);
   }
 
-  @DisplayName("경험 유형이 없으면 이력 생성을 거절한다.")
   @Test
+  @DisplayName("경험 유형이 없으면 이력 생성을 거절한다.")
   void visitExperienceIsRequired() {
     assertThatThrownBy(() -> CarWashHistory.register(carWash, 1L, null, SUBMITTED_AT, SUBMITTED_AT,
                                                      information().build()))
             .isInstanceOf(NullPointerException.class);
   }
 
-  @DisplayName("관찰 시점이 제출 시점보다 늦으면 이력 생성을 거절한다.")
   @Test
+  @DisplayName("관찰 시점이 제출 시점보다 늦으면 이력 생성을 거절한다.")
   void observationAfterSubmissionIsRejected() {
     assertThatThrownBy(
             () -> CarWashHistory.register(carWash, 1L, VisitExperience.NOT_USED, SUBMITTED_AT.plusSeconds(1), SUBMITTED_AT,
@@ -98,8 +98,8 @@ class CarWashHistoryTest {
             .isInstanceOf(IllegalArgumentException.class);
   }
 
-  @DisplayName("작성자 식별자가 양수가 아니면 이력 생성을 거절한다.")
   @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("작성자 식별자가 양수가 아니면 이력 생성을 거절한다.")
   @ValueSource(longs = {0, -1})
   void invalidAuthorIsRejected(long memberId) {
     assertThatThrownBy(

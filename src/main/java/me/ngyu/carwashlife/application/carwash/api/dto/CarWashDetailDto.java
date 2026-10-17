@@ -1,6 +1,7 @@
 package me.ngyu.carwashlife.application.carwash.api.dto;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Set;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
@@ -35,10 +36,12 @@ public class CarWashDetailDto {
                          FacilityAvailability vacuumAvailability,
                          Integer vacuumPrice,
                          Integer washBayCount,
-                         Integer dryingBayCount) {
+                         Integer dryingBayCount,
+                         List<CarWashPhotoDto.Snapshot> photos) {
 
     public static Response from(CarWash carWash,
-                                CarWashRepresentativePolicy.Selection selection) {
+                                CarWashRepresentativePolicy.Selection selection,
+                                List<CarWashPhotoDto.Snapshot> photos) {
       CarWashHistory history = selection.history();
       return new Response(carWash.getId(), history.getId(), selection.confidence(), carWash.isOperatorManaged(),
                           history.getBaseHistory() == null ? null : history.getBaseHistory().getId(), history.getChangedFields(),
@@ -46,7 +49,7 @@ public class CarWashDetailDto {
                           history.getName(), history.getAddress(), history.getLatitude(), history.getLongitude(),
                           history.getHighPressureWaterPrice(), history.getFoamLanceAvailability(), history.getFoamGunPrice(),
                           history.getAirGunAvailability(), history.getAirGunPrice(), history.getVacuumAvailability(), history.getVacuumPrice(),
-                          history.getWashBayCount(), history.getDryingBayCount());
+                          history.getWashBayCount(), history.getDryingBayCount(), photos);
     }
   }
 }

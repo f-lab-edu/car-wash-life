@@ -16,8 +16,11 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -46,6 +49,10 @@ public class CarWashHistory {
   @Getter(AccessLevel.NONE)
   @Column(updatable = false, length = 1000)
   private String changedFieldNames;
+
+  @Getter(AccessLevel.NONE)
+  @Column(updatable = false, columnDefinition = "text")
+  private String evidencePhotoIdValues;
 
   @Column(nullable = false, updatable = false)
   private Long memberId;
@@ -119,14 +126,29 @@ public class CarWashHistory {
   @FieldNameConstants.Include
   private Integer dryingBayCount;
 
+  @Getter(AccessLevel.NONE)
+  @Column(name = "photo_id_values", updatable = false, columnDefinition = "text")
+  @FieldNameConstants.Include
+  private String photos;
+
   public static CarWashHistory register(CarWash carWash,
                                         Long memberId,
                                         VisitExperience visitExperience,
                                         OffsetDateTime observedAt,
                                         OffsetDateTime submittedAt,
                                         CarWashInformation information) {
+    return register(carWash, memberId, visitExperience, observedAt, submittedAt, information, List.of());
+  }
+
+  public static CarWashHistory register(CarWash carWash,
+                                        Long memberId,
+                                        VisitExperience visitExperience,
+                                        OffsetDateTime observedAt,
+                                        OffsetDateTime submittedAt,
+                                        CarWashInformation information,
+                                        List<Long> newPhotoIds) {
     return new CarWashHistory(carWash, null, memberId, CarWashHistoryType.REGISTRATION, visitExperience,
-                              observedAt, submittedAt, information);
+                              observedAt, submittedAt, information, newPhotoIds);
   }
 
   public static CarWashHistory modify(CarWash carWash,
@@ -136,8 +158,19 @@ public class CarWashHistory {
                                       OffsetDateTime observedAt,
                                       OffsetDateTime submittedAt,
                                       CarWashInformation information) {
+    return modify(carWash, baseHistory, memberId, visitExperience, observedAt, submittedAt, information, List.of());
+  }
+
+  public static CarWashHistory modify(CarWash carWash,
+                                      CarWashHistory baseHistory,
+                                      Long memberId,
+                                      VisitExperience visitExperience,
+                                      OffsetDateTime observedAt,
+                                      OffsetDateTime submittedAt,
+                                      CarWashInformation information,
+                                      List<Long> newPhotoIds) {
     return new CarWashHistory(carWash, baseHistory, memberId, CarWashHistoryType.MODIFICATION, visitExperience,
-                              observedAt, submittedAt, information);
+                              observedAt, submittedAt, information, newPhotoIds);
   }
 
   private CarWashHistory(CarWash carWash,
@@ -147,7 +180,8 @@ public class CarWashHistory {
                          VisitExperience visitExperience,
                          OffsetDateTime observedAt,
                          OffsetDateTime submittedAt,
-                         CarWashInformation information) {
+                         CarWashInformation information,
+                         List<Long> newPhotoIds) {
     this.carWash = Objects.requireNonNull(carWash, "세차장 원장은 필수입니다.");
     if (memberId == null || memberId <= 0) {
       throw new IllegalArgumentException("작성자 식별자는 양수여야 합니다.");
@@ -183,6 +217,24 @@ public class CarWashHistory {
     this.washBayCount = information.washBayCount();
     this.dryingBayCount = information.dryingBayCount();
 
+    List<Long> evidenceIds = newPhotoIds == null ? List.of() : newPhotoIds;
+    if (evidenceIds.size() > 5 || evidenceIds.stream().anyMatch(photoId -> photoId == null || photoId <= 0)
+            || new HashSet<>(evidenceIds).size() != evidenceIds.size()) {
+      throw new IllegalArgumentException("사진 식별자는 중복 없는 양수이며 최대 5개입니다.");
+    }
+    List<Long> inheritedIds = baseHistory == null ? List.of() : baseHistory.getPhotoIds();
+    if (evidenceIds.stream().anyMatch(inheritedIds::contains)) {
+      throw new IllegalArgumentException("상속한 사진을 새 관찰 근거로 제출할 수 없습니다.");
+    }
+    List<Long> snapshotIds = new ArrayList<>(inheritedIds);
+    snapshotIds.addAll(evidenceIds);
+    this.photos = encodePhotoIds(snapshotIds);
+    this.evidencePhotoIdValues = encodePhotoIds(evidenceIds);
+
+    this.changedFieldNames = calculateChangedFieldNames();
+  }
+
+  private String calculateChangedFieldNames() {
     Set<Fields> changedFields = EnumSet.noneOf(Fields.class);
     for (Fields field : Fields.values()) {
       if (baseHistory == null || !Objects.equals(valueOf(field), baseHistory.valueOf(field))) {
@@ -192,15 +244,14 @@ public class CarWashHistory {
     if (changedFields.isEmpty()) {
       throw new IllegalArgumentException("수정 요청에는 변경된 정보가 하나 이상 필요합니다.");
     }
-    this.changedFieldNames = changedFields.stream().map(Enum::name)
-                                          .collect(Collectors.joining(","));
+    return changedFields.stream().map(Enum::name)
+                        .collect(Collectors.joining(","));
   }
 
   protected CarWashHistory() {
   }
 
-  public int calculateConfidence(boolean hasEvidencePhoto,
-                                 OffsetDateTime evaluatedAt) {
+  public int calculateConfidence(OffsetDateTime evaluatedAt) {
     Objects.requireNonNull(evaluatedAt, "평가 시점은 필수입니다.");
 
     int confidence = 1;
@@ -210,7 +261,7 @@ public class CarWashHistory {
     if (!observedAt.toInstant().isBefore(evaluatedAt.toInstant().minus(90, ChronoUnit.DAYS))) {
       confidence++;
     }
-    if (hasEvidencePhoto) {
+    if (hasEvidencePhotos()) {
       confidence++;
     }
     return confidence;
@@ -228,6 +279,29 @@ public class CarWashHistory {
     return this.carWash == carWash || (this.carWash.getId() != null && this.carWash.getId().equals(carWash.getId()));
   }
 
+  public List<Long> getPhotoIds() {
+    return decodePhotoIds(photos);
+  }
+
+  public List<Long> getEvidencePhotoIds() {
+    return decodePhotoIds(evidencePhotoIdValues);
+  }
+
+  public boolean hasEvidencePhotos() {
+    return !getEvidencePhotoIds().isEmpty();
+  }
+
+  private static String encodePhotoIds(List<Long> ids) {
+    return ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+  }
+
+  private static List<Long> decodePhotoIds(String ids) {
+    if (ids == null || ids.isBlank()) {
+      return List.of();
+    }
+    return java.util.Arrays.stream(ids.split(",")).map(Long::valueOf).toList();
+  }
+
   private Object valueOf(Fields field) {
     return switch (field) {
       case NAME -> getName();
@@ -242,6 +316,7 @@ public class CarWashHistory {
       case VACUUM_PRICE -> getVacuumPrice();
       case WASH_BAY_COUNT -> getWashBayCount();
       case DRYING_BAY_COUNT -> getDryingBayCount();
+      case PHOTOS -> getPhotoIds();
     };
   }
 
