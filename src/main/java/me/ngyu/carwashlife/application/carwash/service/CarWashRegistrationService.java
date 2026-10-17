@@ -23,6 +23,7 @@ public class CarWashRegistrationService {
   private final CarWashRepository carWashRepository;
   private final CarWashHistoryRepository historyRepository;
   private final MemberRepository memberRepository;
+  private final CarWashRepresentativeService representativeService;
   private final Clock clock;
 
   @Transactional
@@ -50,7 +51,7 @@ public class CarWashRegistrationService {
     int confidence = history.calculateConfidence(false, submittedAt);
     carWashRepository.save(carWash);
     historyRepository.save(history);
-    carWash.selectRepresentativeHistory(history, submittedAt);
+    representativeService.selectAndReflect(carWash, submittedAt);
     return new RegisterCarWashDto.Response(carWash.getId(), history.getId(), confidence, submittedAt);
   }
 }

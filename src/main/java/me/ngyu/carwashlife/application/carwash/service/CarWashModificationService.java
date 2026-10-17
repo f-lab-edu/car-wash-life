@@ -23,6 +23,7 @@ public class CarWashModificationService {
   private final CarWashRepository carWashRepository;
   private final CarWashHistoryRepository historyRepository;
   private final MemberRepository memberRepository;
+  private final CarWashRepresentativeService representativeService;
   private final Clock clock;
 
   @Transactional
@@ -35,7 +36,7 @@ public class CarWashModificationService {
     if (!member.isActive()) {
       throw new ApplicationException(ErrorCode.ACCOUNT_NOT_ACTIVE);
     }
-    CarWash carWash = carWashRepository.findById(carWashId)
+    CarWash carWash = carWashRepository.findByIdForUpdate(carWashId)
                                        .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_NOT_FOUND));
     CarWashHistory baseHistory = historyRepository.findById(request.baseHistoryId())
                                                   .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_HISTORY_NOT_FOUND));
@@ -50,6 +51,7 @@ public class CarWashModificationService {
 
     int confidence = history.calculateConfidence(false, submittedAt);
     historyRepository.save(history);
+    representativeService.selectAndReflect(carWash, submittedAt);
     return new ModifyCarWashDto.Response(carWash.getId(), history.getId(), baseHistory.getId(), history.getChangedFields(), confidence, submittedAt);
   }
 }
