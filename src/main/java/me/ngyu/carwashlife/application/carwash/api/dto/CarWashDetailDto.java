@@ -14,6 +14,13 @@ public class CarWashDetailDto {
   private CarWashDetailDto() {
   }
 
+  /**
+   * 선택된 대표 제보의 전체 스냅샷을 반환한다. 미확인 항목은 과거 이력의 값으로 채우지 않는다.
+   *
+   * @param confidence 조회 시점에 평가한 대표 제보의 점수. 항목별 정확성이나 모든 항목의 확인 여부를 보증하지 않는다.
+   * @param changedFields 기준 이력과 값이 달라진 항목. 이번에 재확인한 항목의 목록이 아니다.
+   * @param observedAt 대표 제보에서 입력한 정보를 확인했다고 제보한 시점
+   */
   public record Response(Long carWashId,
                          Long historyId,
                          int confidence,
