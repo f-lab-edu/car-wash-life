@@ -5,7 +5,6 @@ import java.time.OffsetDateTime;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashDetailDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
-import me.ngyu.carwashlife.application.carwash.domain.CarWashRepresentativePolicy;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -20,10 +19,9 @@ public class CarWashQueryService {
 
   private final CarWashRepository carWashRepository;
   private final MemberRepository memberRepository;
-  private final CarWashRepresentativeService representativeService;
   private final Clock clock;
 
-  @Transactional
+  @Transactional(readOnly = true)
   public CarWashDetailDto.Response findDetail(Long memberId, Long carWashId) {
     if (memberId == null) {
       throw new ApplicationException(ErrorCode.AUTHENTICATION_REQUIRED);
@@ -33,9 +31,9 @@ public class CarWashQueryService {
     if (!member.isActive()) {
       throw new ApplicationException(ErrorCode.ACCOUNT_NOT_ACTIVE);
     }
-    CarWash carWash = carWashRepository.findByIdForUpdate(carWashId)
+    CarWash carWash = carWashRepository.findById(carWashId)
                                        .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_NOT_FOUND));
-    CarWashRepresentativePolicy.Selection selection = representativeService.selectAndReflect(carWash, OffsetDateTime.now(clock));
-    return CarWashDetailDto.Response.from(carWash, selection);
+    int confidence = carWash.getTargetHistory().calculateConfidence(false, OffsetDateTime.now(clock));
+    return CarWashDetailDto.Response.from(carWash, confidence);
   }
 }

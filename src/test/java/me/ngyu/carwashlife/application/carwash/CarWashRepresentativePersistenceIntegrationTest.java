@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import me.ngyu.carwashlife.application.carwash.api.dto.CarWashDetailDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashInformationDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
@@ -17,6 +18,7 @@ import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 import me.ngyu.carwashlife.application.carwash.service.CarWashModificationService;
+import me.ngyu.carwashlife.application.carwash.service.CarWashQueryService;
 import me.ngyu.carwashlife.application.carwash.service.CarWashRegistrationService;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
@@ -48,6 +50,8 @@ class CarWashRepresentativePersistenceIntegrationTest {
   private CarWashRegistrationService registrationService;
   @Autowired
   private CarWashModificationService modificationService;
+  @Autowired
+  private CarWashQueryService queryService;
   @Autowired
   private PlatformTransactionManager transactionManager;
   @Autowired
@@ -120,6 +124,52 @@ class CarWashRepresentativePersistenceIntegrationTest {
       assertThat(master.getLongitude()).isEqualTo(127.0);
     } finally {
       start.countDown();
+      executor.shutdownNow();
+      assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+    }
+  }
+
+  @DisplayName("수정 중 상세 조회는 잠금을 기다리지 않고 이전 대표를 반환하며 커밋 후에는 새 대표를 반환한다.")
+  @Test
+  void queriesReadTheCommittedRepresentativeWithoutWaitingForAnOngoingModification() throws Exception {
+    CountDownLatch modified = new CountDownLatch(1);
+    CountDownLatch commit = new CountDownLatch(1);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      Future<ModifyCarWashDto.Response> writer = executor.submit(() -> new TransactionTemplate(transactionManager).execute(status -> {
+        ModifyCarWashDto.Response response = modificationService.modify(memberId, original.carWashId(), modification("새 대표", 37.6, NOW.minusDays(1)));
+        entityManager.flush();
+        modified.countDown();
+        try {
+          if (!commit.await(10, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("수정 트랜잭션 커밋 대기 시간 초과");
+          }
+        } catch (InterruptedException exception) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException("수정 트랜잭션 커밋 대기 중 인터럽트", exception);
+        }
+        return response;
+      }));
+      assertThat(modified.await(10, TimeUnit.SECONDS)).isTrue();
+
+      Future<CarWashDetailDto.Response> reader = executor.submit(() -> queryService.findDetail(memberId, original.carWashId()));
+      CarWashDetailDto.Response beforeCommit = reader.get(5, TimeUnit.SECONDS);
+      assertThat(beforeCommit.historyId()).isEqualTo(original.historyId());
+      assertThat(beforeCommit.name()).isEqualTo("세차생활");
+      assertThat(beforeCommit.latitude()).isEqualTo(37.5);
+      assertThat(beforeCommit.confidence()).isEqualTo(1);
+      assertThat(writer.isDone()).isFalse();
+
+      commit.countDown();
+      ModifyCarWashDto.Response modification = writer.get(10, TimeUnit.SECONDS);
+      CarWashDetailDto.Response afterCommit = queryService.findDetail(memberId, original.carWashId());
+      assertThat(afterCommit.historyId()).isEqualTo(modification.historyId());
+      assertThat(afterCommit.name()).isEqualTo("새 대표");
+      assertThat(afterCommit.latitude()).isEqualTo(37.6);
+      assertThat(afterCommit.confidence()).isEqualTo(4);
+      assertThat(historyRepository.count()).isEqualTo(2);
+    } finally {
+      commit.countDown();
       executor.shutdownNow();
       assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
     }

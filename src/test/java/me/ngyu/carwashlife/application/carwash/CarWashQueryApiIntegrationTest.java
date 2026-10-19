@@ -190,24 +190,28 @@ class CarWashQueryApiIntegrationTest {
     assertThat(carWashRepository.findById(carWashId).orElseThrow().getUpdatedAt()).isEqualTo(NOW);
   }
 
-  @DisplayName("원장이 오래된 대표 이력을 가리키면 조회 시 최고점 이력과 해당 이름 및 좌표로 복구한다.")
+  @DisplayName("상세 조회는 더 높은 순위의 이력이 있어도 저장된 대표를 반환하고 원장을 변경하지 않는다.")
   @Test
-  void queriesRepairAnOutdatedRepresentativeAndItsMasterProjection() throws Exception {
+  void queriesReturnTheStoredRepresentativeWithoutReselectingOrChangingTheMaster() throws Exception {
     mockMvc.perform(post("/car-washes/{id}/histories", carWashId).header("Authorization", "Bearer " + token)
-                                                                 .contentType(MediaType.APPLICATION_JSON).content(modification().replace("세차생활", "정확한 이름")))
+                                                                 .contentType(MediaType.APPLICATION_JSON).content(modification().replace("세차생활", "새 대표 이름")))
            .andExpect(status().isCreated());
     Long winner = carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId();
-    jdbcTemplate.update("update car_wash set target_history_id = ?, name = ?, latitude = 0, longitude = 0 where id = ?", originalHistoryId, "오래된 이름", carWashId);
+    assertThat(winner).isNotEqualTo(originalHistoryId);
+    jdbcTemplate.update("update car_wash set target_history_id = ?, name = ? where id = ?", originalHistoryId, "세차생활", carWashId);
+    OffsetDateTime updatedAt = carWashRepository.findById(carWashId).orElseThrow().getUpdatedAt();
 
     mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer " + token))
-           .andExpect(status().isOk()).andExpect(jsonPath("$.historyId").value(winner))
-           .andExpect(jsonPath("$.name").value("정확한 이름"));
+           .andExpect(status().isOk()).andExpect(jsonPath("$.historyId").value(originalHistoryId))
+           .andExpect(jsonPath("$.name").value("세차생활"));
 
-    CarWash repaired = carWashRepository.findById(carWashId).orElseThrow();
-    assertThat(repaired.getTargetHistory().getId()).isEqualTo(winner);
-    assertThat(repaired.getName()).isEqualTo("정확한 이름");
-    assertThat(repaired.getLatitude()).isEqualTo(37.5);
-    assertThat(repaired.getLongitude()).isEqualTo(127.0);
+    CarWash master = carWashRepository.findById(carWashId).orElseThrow();
+    assertThat(master.getTargetHistory().getId()).isEqualTo(originalHistoryId);
+    assertThat(master.getName()).isEqualTo("세차생활");
+    assertThat(master.getLatitude()).isEqualTo(37.5);
+    assertThat(master.getLongitude()).isEqualTo(127.0);
+    assertThat(master.getUpdatedAt()).isEqualTo(updatedAt);
+    assertThat(historyRepository.count()).isEqualTo(2);
   }
 
   @DisplayName("존재하지 않는 세차장을 상세 조회하면 404 오류를 반환한다.")
