@@ -58,3 +58,22 @@
 changedFields는 기준 이력과 값이 달라진 항목이다. 이전과 같은 가격을 다시 확인해 제출해도 가격은 변경 항목에 포함되지 않는다.
 도메인의 getSourceHistory()는 그 값이 변경된 이력을 따라가는 기능이며, 마지막 재확인 시점을 뜻하지 않는다.
 이번 API는 항목별 재확인 이력을 별도로 제공하지 않는다.
+
+## 이력 조회 인덱스
+
+수정 시 대표 선정을 위해 실행하는 `findAllByCarWashId`는 `car_wash_history.car_wash_id`의 비고유 인덱스를 사용하도록 정의한다.
+다른 세차장의 이력까지 순차 탐색하는 비용을 줄이며, 해당 세차장의 모든 이력을 읽고 평가하는 비용은 남는다.
+실제 인덱스 사용 여부는 데이터 분포와 PostgreSQL 실행 계획에 따라 달라질 수 있다.
+
+JPA의 `@Index`는 스키마 생성에 반영되며, 현재 `ddl-auto=update` 설정에서는 기존 DB도 앱 재시작 시 일반 인덱스 생성을 시도한다.
+쓰기 요청을 막지 않는 동시 생성 방식을 적용하려면 앱 재시작 전에 다음 SQL을 트랜잭션 밖에서 실행한다.
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_car_wash_history_car_wash_id
+    ON public.car_wash_history (car_wash_id);
+
+ANALYZE public.car_wash_history;
+```
+
+`IF NOT EXISTS`는 이름만 확인하므로, 적용 후 `pg_indexes`의 인덱스 정의와 `pg_index.indisvalid`가 true인지 확인한다.
+이미 같은 이름의 인덱스가 있어도 정의가 다르거나 유효하지 않으면 별도로 확인해야 한다. 실행 계획도 함께 확인한다.
