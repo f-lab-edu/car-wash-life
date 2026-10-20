@@ -182,8 +182,8 @@ class CarWashPhotoApiIntegrationTest {
   }
 
   @Test
-  @DisplayName("업로드 파일을 읽지 못하면 원인 예외를 보존하고 사진 정보나 파일을 저장하지 않는다.")
-  void uploadReadFailuresPreserveTheirCauseWithoutSavingAPhoto() throws Exception {
+  @DisplayName("업로드 파일을 읽지 못하면 500을 반환하고 원인을 기록하되 사진 정보나 파일을 저장하지 않는다.")
+  void uploadReadFailuresPreserveTheirCauseWithoutSavingAPhoto(CapturedOutput output) throws Exception {
     IOException failure = new IOException("업로드 파일 읽기 실패");
     MockMultipartFile unreadable = new MockMultipartFile("file", "photo.png", "image/png", image("png")) {
       @Override
@@ -193,11 +193,13 @@ class CarWashPhotoApiIntegrationTest {
     };
 
     MvcResult result = mockMvc.perform(multipart("/car-wash-photos").file(unreadable).header("Authorization", "Bearer " + token))
-                              .andExpect(status().isBadRequest())
-                              .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                              .andExpect(status().isInternalServerError())
+                              .andExpect(jsonPath("$.code").value("PHOTO_STORAGE_ERROR"))
                               .andExpect(jsonPath("$.cause").doesNotExist()).andReturn();
 
     assertThat(result.getResolvedException()).isInstanceOf(ApplicationException.class).hasCause(failure);
+    assertThat(result.getResponse().getContentAsString()).doesNotContain(failure.getMessage());
+    assertThat(output).contains("서버 오류가 발생했습니다. code=PHOTO_STORAGE_ERROR", "java.io.IOException: " + failure.getMessage());
     assertThat(photoRepository.count()).isZero();
     try (var files = Files.list(root)) {
       assertThat(files.count()).isZero();
