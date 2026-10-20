@@ -51,12 +51,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -74,6 +77,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(CarWashRegistrationApiIntegrationTest.FixedClockConfig.class)
+@ExtendWith(OutputCaptureExtension.class)
 class CarWashPhotoApiIntegrationTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
@@ -400,6 +404,26 @@ class CarWashPhotoApiIntegrationTest {
     try (var files = Files.list(root)) {
       assertThat(files.count()).isZero();
     }
+  }
+
+  @Test
+  @DisplayName("업로드 완료 상태가 불명이면 사진 파일을 보존하고 저장 키와 완료 상태를 기록한다.")
+  void unknownUploadCompletionPreservesTheFileAndLogsItsKeyAndStatus(CapturedOutput output) {
+    new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+      List<TransactionSynchronization> existing = TransactionSynchronizationManager.getSynchronizations();
+      var uploaded = photoService.upload(memberId, new MockMultipartFile("file", "photo.png", "image/png", imageUnchecked()));
+      CarWashPhoto photo = photoRepository.findById(uploaded.photoId()).orElseThrow();
+      List<TransactionSynchronization> callbacks = TransactionSynchronizationManager.getSynchronizations().stream()
+                                                                                    .filter(callback -> !existing.contains(callback)).toList();
+      assertThat(callbacks).hasSize(1);
+
+      callbacks.getFirst().afterCompletion(TransactionSynchronization.STATUS_UNKNOWN);
+
+      assertThat(root.resolve(photo.getStorageKey())).hasBinaryContent(imageUnchecked());
+      assertThat(output).contains("파일을 보존합니다.", "storageKey=" + photo.getStorageKey(), "status=" + TransactionSynchronization.STATUS_UNKNOWN);
+    });
+
+    assertThat(photoRepository.count()).isEqualTo(1);
   }
 
   @Test

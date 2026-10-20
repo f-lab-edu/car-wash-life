@@ -49,12 +49,15 @@ public class CarWashPhotoService {
     TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
       @Override
       public void afterCompletion(int status) {
-        if (status != STATUS_COMMITTED) {
+        if (status == STATUS_ROLLED_BACK) {
           try {
             storage.delete(key);
           } catch (IOException exception) {
             System.getLogger(CarWashPhotoService.class.getName()).log(System.Logger.Level.ERROR, "롤백된 사진 파일을 정리하지 못했습니다.", exception);
           }
+        } else if (status == STATUS_UNKNOWN) {
+          System.getLogger(CarWashPhotoService.class.getName()).log(System.Logger.Level.WARNING,
+                                                                   "사진 업로드 트랜잭션의 완료 상태를 확인할 수 없어 파일을 보존합니다. storageKey=" + key + ", status=" + status);
         }
       }
     });
