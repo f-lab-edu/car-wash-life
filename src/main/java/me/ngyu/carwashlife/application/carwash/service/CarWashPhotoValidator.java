@@ -88,7 +88,7 @@ public class CarWashPhotoValidator {
 
     @Override
     public String toString() {
-      return "ValidatedPhoto[content=" + Arrays.toString(content) + ", contentType=" + contentType + "]";
+      return "ValidatedPhoto[size=" + content.length + ", contentType=" + contentType + "]";
     }
   }
 }

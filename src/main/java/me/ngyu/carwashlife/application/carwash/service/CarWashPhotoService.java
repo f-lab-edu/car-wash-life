@@ -155,7 +155,7 @@ public class CarWashPhotoService {
 
     @Override
     public String toString() {
-      return "PhotoContent[content=" + Arrays.toString(content) + ", contentType=" + contentType + "]";
+      return "PhotoContent[size=" + content.length + ", contentType=" + contentType + "]";
     }
   }
 }

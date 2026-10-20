@@ -66,18 +66,20 @@ class CarWashPhotoValueTest {
   }
 
   @Test
-  @DisplayName("조회 사진을 문자열로 표현하면 배열 주소 대신 내용과 파일 형식을 표시한다.")
-  void photoContentStringShowsArrayContents() {
-    var photo = new CarWashPhotoService.PhotoContent(new byte[]{1, 2}, "image/png");
+  @DisplayName("최대 크기의 조회 사진도 문자열에는 크기와 파일 형식만 짧게 표시한다.")
+  void photoContentStringShowsOnlyMetadataForAMaxSizedPhoto() {
+    var photo = new CarWashPhotoService.PhotoContent(new byte[CarWashPhotoValidator.MAX_BYTES], "image/png");
 
-    assertThat(photo.toString()).isEqualTo("PhotoContent[content=[1, 2], contentType=image/png]");
+    assertThat(photo.toString()).contains("size=" + CarWashPhotoValidator.MAX_BYTES, "contentType=image/png")
+                                .doesNotContain("content=").hasSizeLessThan(128);
   }
 
   @Test
-  @DisplayName("검증한 사진을 문자열로 표현하면 배열 주소 대신 내용과 파일 형식을 표시한다.")
-  void validatedPhotoStringShowsArrayContents() {
-    var photo = new CarWashPhotoValidator.ValidatedPhoto(new byte[]{1, 2}, "image/png");
+  @DisplayName("최대 크기의 검증한 사진도 문자열에는 크기와 파일 형식만 짧게 표시한다.")
+  void validatedPhotoStringShowsOnlyMetadataForAMaxSizedPhoto() {
+    var photo = new CarWashPhotoValidator.ValidatedPhoto(new byte[CarWashPhotoValidator.MAX_BYTES], "image/png");
 
-    assertThat(photo.toString()).isEqualTo("ValidatedPhoto[content=[1, 2], contentType=image/png]");
+    assertThat(photo.toString()).contains("size=" + CarWashPhotoValidator.MAX_BYTES, "contentType=image/png")
+                                .doesNotContain("content=").hasSizeLessThan(128);
   }
 }
