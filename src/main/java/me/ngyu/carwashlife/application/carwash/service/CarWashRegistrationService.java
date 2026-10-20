@@ -25,7 +25,6 @@ public class CarWashRegistrationService {
   private final CarWashRepository carWashRepository;
   private final CarWashHistoryRepository historyRepository;
   private final MemberRepository memberRepository;
-  private final CarWashRepresentativeService representativeService;
   private final CarWashPhotoService photoService;
   private final Clock clock;
 
@@ -56,7 +55,7 @@ public class CarWashRegistrationService {
     carWashRepository.save(carWash);
     historyRepository.save(history);
     photoService.attachPhotos(photos, history);
-    representativeService.selectAndReflect(carWash, submittedAt);
+    carWash.selectRepresentativeHistory(history, submittedAt);
     return new RegisterCarWashDto.Response(carWash.getId(), history.getId(), confidence, submittedAt);
   }
 }

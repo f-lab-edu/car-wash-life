@@ -24,4 +24,7 @@ com.carwashlife
     └── ...
 ```
 
-회원 세차장 등록·수정 API와 사진 저장 경로 설정은 [MVP 기능 문서](docs/car-wash-mvp.md)를 참고한다.
+### API 계약
+
+- [세차장 등록·수정·상세 조회의 제보와 신뢰도 의미](docs/api/car-wash.md)
+- [사진 업로드와 저장 경로 설정](docs/car-wash-mvp.md)
