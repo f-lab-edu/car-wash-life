@@ -16,6 +16,36 @@ class CarWashPhotoTest {
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
 
   @Test
+  @DisplayName("미첨부 사진은 소유자만 조회하고 첨부할 수 있다.")
+  void aPendingPhotoIsReadableAndAttachableOnlyByItsOwner() {
+    CarWashPhoto photo = CarWashPhoto.create(1L, UUID.randomUUID().toString(), "image/png", 100, NOW);
+
+    assertThat(photo.canReadBy(1L)).isTrue();
+    assertThat(photo.canAttachBy(1L)).isTrue();
+    assertThat(photo.canReadBy(2L)).isFalse();
+    assertThat(photo.canAttachBy(2L)).isFalse();
+    assertThat(photo.canReadBy(null)).isFalse();
+    assertThat(photo.canAttachBy(null)).isFalse();
+    assertThat(photo.canReadBy(0L)).isFalse();
+    assertThat(photo.canAttachBy(0L)).isFalse();
+  }
+
+  @Test
+  @DisplayName("첨부한 사진은 다른 회원도 조회할 수 있지만 누구도 다시 첨부할 수 없다.")
+  void anAttachedPhotoIsReadableByOtherMembersButCannotBeAttachedAgain() {
+    CarWashPhoto photo = CarWashPhoto.create(1L, UUID.randomUUID().toString(), "image/png", 100, NOW);
+    ReflectionTestUtils.setField(photo, "id", 10L);
+    photo.attachTo(registration(1L, List.of(10L)));
+
+    assertThat(photo.canReadBy(1L)).isTrue();
+    assertThat(photo.canReadBy(2L)).isTrue();
+    assertThat(photo.canReadBy(null)).isFalse();
+    assertThat(photo.canReadBy(0L)).isFalse();
+    assertThat(photo.canAttachBy(1L)).isFalse();
+    assertThat(photo.canAttachBy(2L)).isFalse();
+  }
+
+  @Test
   @DisplayName("사진은 소유자가 새 관찰 근거로 제출한 이력에 한 번만 연결한다.")
   void aPhotoCanBeAttachedOnceToItsOwnersEvidenceHistory() {
     CarWashPhoto photo = CarWashPhoto.create(1L, UUID.randomUUID().toString(), "image/png", 100, NOW);
@@ -36,6 +66,16 @@ class CarWashPhotoTest {
     ReflectionTestUtils.setField(photo, "id", 10L);
 
     assertThatThrownBy(() -> photo.attachTo(registration(2L, List.of(10L)))).isInstanceOf(IllegalArgumentException.class);
+    assertThat(photo.isPending()).isTrue();
+  }
+
+  @Test
+  @DisplayName("소유자의 이력이라도 새 관찰 근거로 제출하지 않은 사진은 연결할 수 없다.")
+  void aPhotoOutsideTheHistoryEvidenceCannotBeAttached() {
+    CarWashPhoto photo = CarWashPhoto.create(1L, UUID.randomUUID().toString(), "image/png", 100, NOW);
+    ReflectionTestUtils.setField(photo, "id", 10L);
+
+    assertThatThrownBy(() -> photo.attachTo(registration(1L, List.of()))).isInstanceOf(IllegalArgumentException.class);
     assertThat(photo.isPending()).isTrue();
   }
 

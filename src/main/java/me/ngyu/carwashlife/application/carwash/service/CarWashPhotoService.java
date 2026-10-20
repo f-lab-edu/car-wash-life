@@ -70,7 +70,7 @@ public class CarWashPhotoService {
     requireActiveMember(memberId);
     CarWashPhoto photo = photoRepository.findById(photoId)
                                         .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_PHOTO_NOT_FOUND));
-    if (photo.isPending() && !photo.getOwnerId().equals(memberId)) {
+    if (!photo.canReadBy(memberId)) {
       throw new ApplicationException(ErrorCode.CAR_WASH_PHOTO_NOT_FOUND);
     }
     try {
@@ -94,7 +94,7 @@ public class CarWashPhotoService {
     return photoIds.stream().sorted().map(id -> {
       CarWashPhoto photo = photoRepository.findByIdForUpdate(id)
                                           .orElseThrow(() -> new ApplicationException(ErrorCode.VALIDATION_ERROR));
-      if (!photo.isPending() || !photo.getOwnerId().equals(memberId)) {
+      if (!photo.canAttachBy(memberId)) {
         throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
       }
       return photo;
@@ -110,7 +110,7 @@ public class CarWashPhotoService {
                                                     .collect(Collectors.toMap(CarWashPhoto::getId, Function.identity()));
     return history.getPhotoIds().stream().map(id -> {
       CarWashPhoto photo = photos.get(id);
-      if (photo == null || photo.getAttachedHistory() == null) {
+      if (photo == null || photo.isPending()) {
         throw new ApplicationException(ErrorCode.CAR_WASH_PHOTO_NOT_FOUND);
       }
       return new CarWashPhotoDto.Snapshot(id, url(id), photo.getAttachedHistory().getId());

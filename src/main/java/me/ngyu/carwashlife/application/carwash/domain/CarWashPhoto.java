@@ -70,8 +70,16 @@ public class CarWashPhoto {
     return attachedHistory == null;
   }
 
+  public boolean canReadBy(Long memberId) {
+    return memberId != null && memberId > 0 && (!isPending() || ownerId.equals(memberId));
+  }
+
+  public boolean canAttachBy(Long memberId) {
+    return isPending() && ownerId.equals(memberId);
+  }
+
   public void attachTo(CarWashHistory history) {
-    if (!isPending() || !ownerId.equals(history.getMemberId()) || !history.getEvidencePhotoIds().contains(id)) {
+    if (history == null || !canAttachBy(history.getMemberId()) || !history.getEvidencePhotoIds().contains(id)) {
       throw new IllegalArgumentException("사진을 해당 이력에 연결할 수 없습니다.");
     }
     attachedHistory = history;
