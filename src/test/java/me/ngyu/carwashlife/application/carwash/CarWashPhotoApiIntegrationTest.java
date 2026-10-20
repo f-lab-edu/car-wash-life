@@ -163,7 +163,7 @@ class CarWashPhotoApiIntegrationTest {
 
   @Test
   @DisplayName("저장된 사진 파일을 읽지 못하면 원인 예외를 보존하고 내부 저장 정보를 공개하지 않는다.")
-  void storageReadFailuresPreserveTheirCauseWithoutExposingStorageDetails() throws Exception {
+  void storageReadFailuresPreserveTheirCauseWithoutExposingStorageDetails(CapturedOutput output) throws Exception {
     Long photoId = upload();
     String key = photoRepository.findById(photoId).orElseThrow().getStorageKey();
     Files.delete(root.resolve(key));
@@ -177,6 +177,8 @@ class CarWashPhotoApiIntegrationTest {
     assertThat(result.getResolvedException()).isInstanceOf(ApplicationException.class).hasCauseInstanceOf(IOException.class);
     assertThat(result.getResponse().getContentAsString()).doesNotContain(key, root.toString());
     assertThat(photoRepository.count()).isEqualTo(1);
+    assertThat(output).contains("서버 오류가 발생했습니다. code=PHOTO_STORAGE_ERROR", "java.nio.file.NoSuchFileException", root.toString(), key);
+    assertThat(output.getAll().lines().filter(line -> line.contains("서버 오류가 발생했습니다. code=PHOTO_STORAGE_ERROR")).count()).isEqualTo(1);
   }
 
   @Test
@@ -386,9 +388,10 @@ class CarWashPhotoApiIntegrationTest {
 
   @Test
   @DisplayName("사진이 없으면 조회에 404 오류를 반환하고 업로드 파일이 없으면 400 오류를 반환한다.")
-  void missingPhotoAndMissingUploadPartAreReported() throws Exception {
+  void missingPhotoAndMissingUploadPartAreReported(CapturedOutput output) throws Exception {
     mockMvc.perform(get("/car-wash-photos/{id}", Long.MAX_VALUE).header("Authorization", "Bearer " + token)).andExpect(status().isNotFound());
     mockMvc.perform(multipart("/car-wash-photos").header("Authorization", "Bearer " + token)).andExpect(status().isBadRequest());
+    assertThat(output).doesNotContain("서버 오류가 발생했습니다. code=");
   }
 
   @Test
