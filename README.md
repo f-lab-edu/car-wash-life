@@ -23,3 +23,7 @@ com.carwashlife
     ├── exception
     └── ...
 ```
+
+### API 계약
+
+- [세차장 등록·수정·상세 조회의 제보와 신뢰도 의미](docs/api/car-wash.md)
