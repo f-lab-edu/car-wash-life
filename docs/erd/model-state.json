@@ -1,0 +1,10 @@
+{
+  "models": {
+    "src/main/java/me/ngyu/carwashlife/application/carwash/domain/CarWash.java": "9ce65211f29bd23f33a17109d7b44fcc4e2cd28377f2c666c5db99dd66b3fbae",
+    "src/main/java/me/ngyu/carwashlife/application/carwash/domain/CarWashHistory.java": "b4cf6a5c263f18b82fc58b1bbced8865fc1d6803ba790cc19c220ffb49e25ee4",
+    "src/main/java/me/ngyu/carwashlife/application/carwash/domain/CarWashPhoto.java": "dba76b042dd9e78c0f4a0499f964691023b90b0039172397218375c54f37525e",
+    "src/main/java/me/ngyu/carwashlife/application/carwash/domain/Coordinates.java": "7d331051aa8d79e9e4743f6a50aba22424c1469b659e9ec4a1397d679de90983",
+    "src/main/java/me/ngyu/carwashlife/application/member/domain/Member.java": "8a2803aef747beff698320501cc9553ca8c1ecfc2ca4d00a2685541e9e4a9c43"
+  },
+  "version": 1
+}
