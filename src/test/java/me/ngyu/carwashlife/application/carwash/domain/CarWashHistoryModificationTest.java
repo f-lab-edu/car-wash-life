@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory.Fields;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,17 +19,17 @@ class CarWashHistoryModificationTest {
   private static final OffsetDateTime SUBMITTED_AT = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
   private final CarWash carWash = CarWash.create("세차생활", new Coordinates(37.5, 127.0), SUBMITTED_AT);
 
-  @DisplayName("변경 항목은 좌표를 하나로 묶은 12개 상세정보 항목만 포함한다.")
+  @DisplayName("변경 항목은 좌표를 하나로 묶고 사진을 포함한 13개 상세정보 항목만 포함한다.")
   @Test
   void changedFieldsTreatCoordinatesAsOneInformationItemAndExcludeMetadata() {
     assertThat(Fields.values()).extracting(Enum::name).containsExactly(
             "NAME", "ADDRESS", "COORDINATES", "HIGH_PRESSURE_WATER_PRICE",
             "FOAM_LANCE_AVAILABILITY", "FOAM_GUN_PRICE", "AIR_GUN_AVAILABILITY", "AIR_GUN_PRICE",
-            "VACUUM_AVAILABILITY", "VACUUM_PRICE", "WASH_BAY_COUNT", "DRYING_BAY_COUNT");
+            "VACUUM_AVAILABILITY", "VACUUM_PRICE", "WASH_BAY_COUNT", "DRYING_BAY_COUNT", "PHOTOS");
   }
 
-  @DisplayName("최초 등록 이력은 전체 정보 항목의 원래 출처가 된다.")
   @Test
+  @DisplayName("최초 등록 이력은 전체 정보 항목의 원래 출처가 된다.")
   void registrationIsTheOriginalSourceOfAllSnapshotFields() {
     CarWashHistory registration = registration();
 
@@ -42,6 +44,7 @@ class CarWashHistoryModificationTest {
   void eachSnapshotFieldIsComparedToTheBaseAndKeepsItsOwnSource(Fields field) {
     CarWashHistory base = registration();
     var information = information();
+    List<Long> newPhotoIds = new ArrayList<>();
     switch (field) {
       case NAME -> information.name("수정한 세차생활");
       case ADDRESS -> information.address("서울시 강남구");
@@ -55,9 +58,10 @@ class CarWashHistoryModificationTest {
       case VACUUM_PRICE -> information.vacuumPrice(1000);
       case WASH_BAY_COUNT -> information.washBayCount(6);
       case DRYING_BAY_COUNT -> information.dryingBayCount(10);
+      case PHOTOS -> newPhotoIds.add(1L);
     }
     CarWashHistory next = CarWashHistory.modify(carWash, base, 2L, VisitExperience.USED,
-                                                SUBMITTED_AT, SUBMITTED_AT, information.build());
+                                                SUBMITTED_AT, SUBMITTED_AT, information.build(), newPhotoIds);
 
     assertThat(next.getType()).isEqualTo(CarWashHistoryType.MODIFICATION);
     assertThat(next.getBaseHistory()).isSameAs(base);
@@ -102,8 +106,8 @@ class CarWashHistoryModificationTest {
     assertThat(second.getSourceHistory(Fields.COORDINATES).getObservedAt()).isEqualTo(SUBMITTED_AT.minusDays(100));
   }
 
-  @DisplayName("주소와 가격을 null로 바꾸면 정보 삭제를 실제 변경으로 기록한다.")
   @Test
+  @DisplayName("주소와 가격을 null로 바꾸면 정보 삭제를 실제 변경으로 기록한다.")
   void explicitlyClearingNullableInformationIsAChange() {
     CarWashHistory base = registration();
     CarWashHistory next = modification(base, "세차생활", null, null);
@@ -114,14 +118,14 @@ class CarWashHistoryModificationTest {
     assertThat(next.getSourceHistory(Fields.ADDRESS)).isSameAs(next);
   }
 
-  @DisplayName("세차장 정보 변경 없이 제보 메타데이터만 바꾸면 수정 이력 생성을 거절한다.")
   @Test
+  @DisplayName("세차장 정보 변경 없이 제보 메타데이터만 바꾸면 수정 이력 생성을 거절한다.")
   void metadataAloneCannotCreateAModification() {
     assertThatThrownBy(() -> modification(registration(), "세차생활", "서울시", 3000)).isInstanceOf(IllegalArgumentException.class);
   }
 
-  @DisplayName("외부에서 수정 이력의 변경 항목 목록을 변경하지 못하게 한다.")
   @Test
+  @DisplayName("외부에서 수정 이력의 변경 항목 목록을 변경하지 못하게 한다.")
   void changedFieldsCannotBeModifiedByTheCaller() {
     CarWashHistory next = modification(registration(), "새 이름", "서울시", 3000);
 
@@ -137,15 +141,15 @@ class CarWashHistoryModificationTest {
     assertThat(history.getBaseHistory()).isNull();
   }
 
-  @DisplayName("수정 요청에 기준 이력이 없으면 이력 생성을 거절한다.")
   @Test
+  @DisplayName("수정 요청에 기준 이력이 없으면 이력 생성을 거절한다.")
   void modificationRequiresABaseHistory() {
     assertThatThrownBy(() -> modification(null, "새 이름", "서울시", 3000))
             .isInstanceOf(IllegalArgumentException.class);
   }
 
-  @DisplayName("수정 요청의 기준 이력이 다른 세차장에 속하면 이력 생성을 거절한다.")
   @Test
+  @DisplayName("수정 요청의 기준 이력이 다른 세차장에 속하면 이력 생성을 거절한다.")
   void modificationCannotReferenceAnotherCarWash() {
     CarWash other = CarWash.create("다른 세차장", new Coordinates(37.5, 127.0), SUBMITTED_AT);
 

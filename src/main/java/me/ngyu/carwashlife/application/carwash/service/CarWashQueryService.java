@@ -19,6 +19,7 @@ public class CarWashQueryService {
 
   private final CarWashRepository carWashRepository;
   private final MemberRepository memberRepository;
+  private final CarWashPhotoService photoService;
   private final Clock clock;
 
   @Transactional(readOnly = true)
@@ -33,7 +34,7 @@ public class CarWashQueryService {
     }
     CarWash carWash = carWashRepository.findById(carWashId)
                                        .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_NOT_FOUND));
-    int confidence = carWash.getTargetHistory().calculateConfidence(false, OffsetDateTime.now(clock));
-    return CarWashDetailDto.Response.from(carWash, confidence);
+    int confidence = carWash.getTargetHistory().calculateConfidence(OffsetDateTime.now(clock));
+    return CarWashDetailDto.Response.from(carWash, confidence, photoService.snapshots(carWash.getTargetHistory()));
   }
 }
