@@ -258,8 +258,8 @@ class CarWashQueryApiIntegrationTest {
   }
 
   @ParameterizedTest(name = "[{index}] {displayName}")
-  @DisplayName("공개 상세와 사진 이외의 조회 경로는 익명 접근을 허용하지 않는다.")
-  @ValueSource(strings = {"/car-washes", "/car-washes/1/histories", "/car-wash-photos", "/car-wash-photos/1/metadata"})
+  @DisplayName("공개 목록·상세·사진 이외의 조회 경로는 익명 접근을 허용하지 않는다.")
+  @ValueSource(strings = {"/car-washes/1/histories", "/car-wash-photos", "/car-wash-photos/1/metadata"})
   void otherReadPathsRemainProtected(String path) throws Exception {
     mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
   }

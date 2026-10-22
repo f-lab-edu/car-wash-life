@@ -1,8 +1,47 @@
-# 세차장 제보와 상세 조회
+# 세차장 탐색·제보·상세 조회
 
-적용 API는 등록 `POST /car-washes`, 수정 `POST /car-washes/{carWashId}/histories`, 상세 조회 `GET /car-washes/{carWashId}`다.
+적용 API는 탐색 `GET /car-washes`, 등록 `POST /car-washes`, 수정 `POST /car-washes/{carWashId}/histories`, 상세 조회 `GET /car-washes/{carWashId}`다.
 
-상세 정보는 로그인 여부와 회원 상태에 관계없이 조회할 수 있다. 등록과 수정에는 활성 회원의 AccessToken이 필요하다.
+탐색과 상세 정보는 로그인 여부와 회원 상태에 관계없이 조회할 수 있다. 등록과 수정에는 활성 회원의 AccessToken이 필요하다.
+
+## 지도 범위 탐색
+
+`GET /car-washes`에 지도의 남서쪽·북동쪽 좌표를 전달한다. 현재 위치는 필요하지 않다.
+
+| 필수 쿼리 파라미터 | 허용 범위 |
+|---|---|
+| southwestLatitude | -90 ~ 90 |
+| southwestLongitude | -180 ~ 180 |
+| northeastLatitude | -90 ~ 90 |
+| northeastLongitude | -180 ~ 180 |
+
+남서쪽 위도·경도는 각각 북동쪽 값 이하여야 한다. 네 경계를 포함하며, 두 좌표가 같은 범위도 허용한다.
+누락·숫자가 아닌 값·NaN·무한대·허용 범위를 벗어난 좌표·역전된 범위는 `400 VALIDATION_ERROR`를 반환한다. 날짜변경선을 가로지르는 범위는 지원하지 않는다.
+
+```http
+GET /car-washes?southwestLatitude=37.4&southwestLongitude=126.9&northeastLatitude=37.6&northeastLongitude=127.1
+```
+
+```json
+{
+  "carWashes": [
+    {
+      "carWashId": 1,
+      "name": "세차생활",
+      "address": "서울시",
+      "latitude": 37.5,
+      "longitude": 127.0
+    }
+  ],
+  "hasMore": false
+}
+```
+
+현재 대표 좌표로 검색하고 대표 이름·주소·좌표를 반환한다. 주소가 미확인이면 `null`이다. 과거 제보의 좌표는 검색에 사용하지 않는다.
+세차장 ID 오름차순으로 최대 100개를 반환하며, 더 있으면 `hasMore`가 `true`다. 전체 건수는 세지 않는다. 결과가 없으면 `carWashes`는 빈 목록이고 `hasMore`는 `false`다.
+추가 결과를 탐색하려면 지도 범위를 좁혀 다시 요청한다. 다음 페이지 조회는 제공하지 않는다.
+
+이번 변경은 범위 조회와 기본 정보 반환까지다. #16의 제보 집계·등록 시각과 현재 위치를 이용한 거리·거리순 정렬은 후속 변경에서 구현한다.
 
 ## 확인한 정보와 미확인 정보
 
