@@ -5,6 +5,14 @@
 
 `Java 21` `Spring Boot 4.x` `PostgreSQL`
 
+### ERD
+
+![회원·세차장·제보 이력·사진의 엔티티 관계](docs/erd/overview.svg)
+
+실선은 DB 외래키, 점선은 DB 외래키 없이 ID 값으로 연결하는 관계입니다.
+
+[자세한 ERD 보러가기 →](https://github.com/f-lab-edu/car-wash-life/wiki/ERD)
+
 ### 패키지 구조
 
 ```text
