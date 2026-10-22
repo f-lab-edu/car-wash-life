@@ -1,17 +1,13 @@
-# 상세 ERD
-
 현재 구현된 회원·세차장·제보 이력·사진의 관계와 저장 필드를 정리한다. 아직 구현하지 않은 탐색 기능이나 시설 항목은 포함하지 않는다.
 
 ![Car Wash Life 상세 ERD](detailed.svg)
 
 [원본 SVG 크게 보기](detailed.svg) · [프로젝트 README](https://github.com/f-lab-edu/car-wash-life#readme)
 
-## 기준과 표기
+## 구현 기준
 
 - 기준 구현: [main의 `9dcf9c0`](https://github.com/f-lab-edu/car-wash-life/tree/9dcf9c0c7bf334fd36020dbf1736b6f15ee44c7b). 이 문서는 JPA 매핑을 설명하며, 운영 DB의 실제 DDL·인덱스 적용 여부를 보증하지 않는다.
-- 실선은 JPA 연관관계로 매핑한 DB 외래키, 점선은 ID 값 참조다. `memberId`와 `ownerId`에는 회원 외래키나 JPA 연관관계가 없다.
 - `PK`: 기본키, `FK`: 외래키, `ID`: 스칼라 ID 참조, `NN`: null 불가, `UQ`: 고유. 표의 빈 제약은 JPA 매핑에 해당 제약을 지정하지 않았다는 뜻이다.
-- `0..1`은 선택 단일, `0..*`는 여러 건이다. 저장소 매핑에서 허용하는 개수이며, 성공한 세차장 등록은 최초 제보와 대표 제보를 함께 생성한다.
 - 필드명과 타입은 Java/JPA 기준이다. `Coordinates`는 값 객체이며 별도 엔티티·테이블이 아니다. `latitude`·`longitude` 컬럼이 소속 테이블에 저장된다.
 
 ## 관계
@@ -150,4 +146,4 @@
 - [요약 HTML 원본](overview.html)
 - [상세 HTML 원본](detailed.html)
 
-기본 스타일의 HTML 원본은 웹 폰트를 사용한다. GitHub 이미지용 SVG는 외부 폰트를 요청하지 않으며, 설치된 폰트에 따라 대체 서체로 표시될 수 있다.
+HTML 원본은 웹 폰트를 사용한다. GitHub 이미지용 SVG는 외부 폰트를 요청하지 않으며, 설치된 폰트에 따라 대체 서체로 표시될 수 있다.
