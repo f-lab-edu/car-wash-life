@@ -7,11 +7,12 @@ import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashDetailDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashExplorationDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashExplorationResult;
 import me.ngyu.carwashlife.application.carwash.domain.MapBounds;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,9 +29,10 @@ public class CarWashQueryService {
 
   @Transactional(readOnly = true)
   public CarWashExplorationDto.Response findWithinBounds(MapBounds bounds) {
-    List<CarWash> carWashes = carWashRepository.findWithinBounds(bounds, PageRequest.of(0, EXPLORATION_LIMIT + 1));
-    return new CarWashExplorationDto.Response(carWashes.stream().limit(EXPLORATION_LIMIT).map(CarWashExplorationDto.CarWashSummary::from).toList(),
-                                              carWashes.size() > EXPLORATION_LIMIT);
+    List<CarWashExplorationResult> rows = carWashRepository.findWithinBounds(bounds, Limit.of(EXPLORATION_LIMIT + 1));
+    List<CarWashExplorationResult> visibleRows = rows.subList(0, Math.min(rows.size(), EXPLORATION_LIMIT));
+    List<CarWashExplorationDto.CarWashSummary> summaries = visibleRows.stream().map(CarWashExplorationDto.CarWashSummary::from).toList();
+    return new CarWashExplorationDto.Response(summaries, rows.size() > EXPLORATION_LIMIT);
   }
 
   @Transactional(readOnly = true)

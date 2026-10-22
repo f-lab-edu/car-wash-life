@@ -30,7 +30,10 @@ GET /car-washes?southwestLatitude=37.4&southwestLongitude=126.9&northeastLatitud
       "name": "세차생활",
       "address": "서울시",
       "latitude": 37.5,
-      "longitude": 127.0
+      "longitude": 127.0,
+      "reportCount": 3,
+      "latestSubmittedAt": "2026-10-09T12:00:00+09:00",
+      "createdAt": "2026-10-07T12:00:00+09:00"
     }
   ],
   "hasMore": false
@@ -38,10 +41,18 @@ GET /car-washes?southwestLatitude=37.4&southwestLongitude=126.9&northeastLatitud
 ```
 
 현재 대표 좌표로 검색하고 대표 이름·주소·좌표를 반환한다. 주소가 미확인이면 `null`이다. 과거 제보의 좌표는 검색에 사용하지 않는다.
-세차장 ID 오름차순으로 최대 100개를 반환하며, 더 있으면 `hasMore`가 `true`다. 전체 건수는 세지 않는다. 결과가 없으면 `carWashes`는 빈 목록이고 `hasMore`는 `false`다.
+세차장 ID 오름차순으로 최대 100개를 반환하며, 더 있으면 `hasMore`가 `true`다. 범위 안 세차장의 전체 건수는 세지 않는다. 결과가 없으면 `carWashes`는 빈 목록이고 `hasMore`는 `false`다.
+추가 결과 여부는 상한보다 한 건 더 조회해 확인하며, 확인용 항목은 응답에 포함하지 않는다.
 추가 결과를 탐색하려면 지도 범위를 좁혀 다시 요청한다. 다음 페이지 조회는 제공하지 않는다.
 
-이번 변경은 범위 조회와 기본 정보 반환까지다. #16의 제보 집계·등록 시각과 현재 위치를 이용한 거리·거리순 정렬은 후속 변경에서 구현한다.
+| 제보 활동 정보 | 의미 |
+|---|---|
+| reportCount | 최초 등록과 모든 수정 제보를 합한 건수 |
+| latestSubmittedAt | 대표 여부와 관계없이 가장 최근에 제출된 제보의 시각 |
+| createdAt | 세차장이 서비스에 최초 등록된 시각 |
+
+최근 제보 시각은 관찰 시각(`observedAt`)이나 대표 정보 갱신 시각(`updatedAt`)과 다르다. 대표로 선택되지 않은 제보도 건수와 최근 제출 시각에 반영한다.
+현재 위치를 이용한 거리·거리순 정렬은 후속 변경에서 구현한다.
 
 ## 확인한 정보와 미확인 정보
 

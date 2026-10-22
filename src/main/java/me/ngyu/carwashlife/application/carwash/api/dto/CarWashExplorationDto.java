@@ -1,8 +1,9 @@
 package me.ngyu.carwashlife.application.carwash.api.dto;
 
 import jakarta.validation.constraints.NotNull;
+import java.time.OffsetDateTime;
 import java.util.List;
-import me.ngyu.carwashlife.application.carwash.domain.CarWash;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashExplorationResult;
 import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.carwash.domain.MapBounds;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
@@ -34,10 +35,18 @@ public class CarWashExplorationDto {
     }
   }
 
-  public record CarWashSummary(Long carWashId, String name, String address, double latitude, double longitude) {
+  public record CarWashSummary(Long carWashId,
+                               String name,
+                               String address,
+                               double latitude,
+                               double longitude,
+                               long reportCount,
+                               OffsetDateTime latestSubmittedAt,
+                               OffsetDateTime createdAt) {
 
-    public static CarWashSummary from(CarWash carWash) {
-      return new CarWashSummary(carWash.getId(), carWash.getName(), carWash.getTargetHistory().getAddress(), carWash.getLatitude(), carWash.getLongitude());
+    public static CarWashSummary from(CarWashExplorationResult result) {
+      return new CarWashSummary(result.carWashId(), result.name(), result.address(), result.latitude(), result.longitude(),
+                                result.reportCount(), result.latestSubmittedAt(), result.createdAt());
     }
   }
 }

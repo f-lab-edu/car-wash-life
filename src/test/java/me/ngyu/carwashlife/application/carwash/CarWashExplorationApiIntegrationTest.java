@@ -12,6 +12,7 @@ import java.util.List;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashInformationDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
+import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 import me.ngyu.carwashlife.application.carwash.service.CarWashModificationService;
 import me.ngyu.carwashlife.application.carwash.service.CarWashRegistrationService;
@@ -38,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-@Import(CarWashRegistrationApiIntegrationTest.FixedClockConfig.class)
+@Import(CarWashQueryApiIntegrationTest.TestClockConfig.class)
 class CarWashExplorationApiIntegrationTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
@@ -60,10 +61,14 @@ class CarWashExplorationApiIntegrationTest {
   @Autowired
   private JdbcTemplate jdbcTemplate;
 
+  @Autowired
+  private CarWashQueryApiIntegrationTest.AdjustableClock clock;
+
   private Long memberId;
 
   @BeforeEach
   void setUp() {
+    clock.setInstant(NOW.toInstant());
     photoRepository.deleteAllInBatch();
     jdbcTemplate.update("update car_wash set target_history_id = null");
     historyRepository.deleteAllInBatch();
@@ -93,8 +98,46 @@ class CarWashExplorationApiIntegrationTest {
            .andExpect(jsonPath("$.carWashes[0].address").value("서울"))
            .andExpect(jsonPath("$.carWashes[0].latitude").value(37.5))
            .andExpect(jsonPath("$.carWashes[0].longitude").value(127.5))
+           .andExpect(jsonPath("$.carWashes[0].reportCount").value(1))
+           .andExpect(result -> {
+             String latestSubmittedAt = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[0].latestSubmittedAt");
+             String createdAt = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[0].createdAt");
+             assertThat(OffsetDateTime.parse(latestSubmittedAt).toInstant()).isEqualTo(NOW.toInstant());
+             assertThat(OffsetDateTime.parse(createdAt).toInstant()).isEqualTo(NOW.toInstant());
+           })
            .andExpect(jsonPath("$.carWashes[0].memberId").doesNotExist())
            .andExpect(jsonPath("$.hasMore").value(false));
+  }
+
+  @Test
+  @DisplayName("비대표 수정 제보도 건수와 최근 제출 시각에 반영하고 다른 세차장 통계와 대표 정보는 유지한다.")
+  void nonRepresentativeReportsUpdateActivityWithoutChangingRepresentativeOrOtherCarWashes() throws Exception {
+    RegisterCarWashDto.Response first = register("대표 이름", "서울", 37.5, 127.5);
+    RegisterCarWashDto.Response second = register("다른 세차장", "경기", 37.6, 127.6);
+    clock.setInstant(NOW.plusHours(3).toInstant());
+    modificationService.modify(memberId, first.carWashId(), new ModifyCarWashDto.Request(first.historyId(), VisitExperience.NOT_USED,
+                                                                                         NOW.minusDays(2), information("낮은 신뢰도 제보", "부산", 35.5, 129.5), List.of()));
+
+    mockMvc.perform(bounds("37", "127", "38", "128"))
+           .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(2))
+           .andExpect(jsonPath("$.carWashes[0].carWashId").value(first.carWashId()))
+           .andExpect(jsonPath("$.carWashes[0].name").value("대표 이름"))
+           .andExpect(jsonPath("$.carWashes[0].reportCount").value(2))
+           .andExpect(jsonPath("$.carWashes[1].carWashId").value(second.carWashId()))
+           .andExpect(jsonPath("$.carWashes[1].reportCount").value(1))
+           .andExpect(result -> {
+             String latestSubmittedAt = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[0].latestSubmittedAt");
+             String createdAt = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[0].createdAt");
+             String otherLatestSubmittedAt = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[1].latestSubmittedAt");
+             assertThat(OffsetDateTime.parse(latestSubmittedAt).toInstant()).isEqualTo(NOW.plusHours(3).toInstant());
+             assertThat(OffsetDateTime.parse(createdAt).toInstant()).isEqualTo(NOW.toInstant());
+             assertThat(OffsetDateTime.parse(otherLatestSubmittedAt).toInstant()).isEqualTo(NOW.toInstant());
+           });
+
+    CarWash master = carWashRepository.findById(first.carWashId()).orElseThrow();
+    assertThat(master.getTargetHistory().getId()).isEqualTo(first.historyId());
+    assertThat(master.getTargetHistory().getSubmittedAt()).isEqualTo(NOW);
+    assertThat(master.getUpdatedAt()).isEqualTo(NOW);
   }
 
   @Test
