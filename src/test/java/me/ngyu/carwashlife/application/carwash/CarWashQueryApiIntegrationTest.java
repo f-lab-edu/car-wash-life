@@ -24,6 +24,8 @@ import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -92,7 +94,7 @@ class CarWashQueryApiIntegrationTest {
   @Test
   @DisplayName("상세 조회하면 내부 회원 식별자를 노출하지 않고 대표 이력의 전체 정보와 신뢰도를 반환한다.")
   void detailReturnsTheSelectedFullSnapshotAndConfidenceWithoutExposingMemberIds() throws Exception {
-    mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer " + token))
+    mockMvc.perform(get("/car-washes/{id}", carWashId))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.carWashId").value(carWashId))
            .andExpect(jsonPath("$.historyId").value(originalHistoryId))
@@ -226,32 +228,53 @@ class CarWashQueryApiIntegrationTest {
   }
 
   @Test
-  @DisplayName("인증 없이 세차장을 상세 조회하면 거절한다.")
-  void missingAuthenticationIsRejected() throws Exception {
-    mockMvc.perform(get("/car-washes/{id}", carWashId)).andExpect(status().isUnauthorized());
+  @DisplayName("비회원도 세차장의 대표 정보를 상세 조회할 수 있다.")
+  void anonymousVisitorsCanReadDetails() throws Exception {
+    mockMvc.perform(get("/car-washes/{id}", carWashId))
+           .andExpect(status().isOk()).andExpect(jsonPath("$.historyId").value(originalHistoryId));
   }
 
   @Test
-  @DisplayName("잘못된 토큰으로 세차장을 상세 조회하면 거절한다.")
-  void invalidTokensAreRejected() throws Exception {
+  @DisplayName("잘못된 토큰은 익명으로 취급하여 공개 상세 조회를 허용한다.")
+  void invalidTokensAreTreatedAsAnonymousForPublicDetails() throws Exception {
     mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer invalid-token"))
-           .andExpect(status().isUnauthorized());
+           .andExpect(status().isOk()).andExpect(jsonPath("$.historyId").value(originalHistoryId));
   }
 
   @Test
-  @DisplayName("삭제된 회원의 토큰으로 세차장을 상세 조회하면 거절한다.")
-  void tokensForDeletedMembersAreRejected() throws Exception {
+  @DisplayName("삭제된 회원의 토큰으로도 공개 상세 정보를 조회할 수 있다.")
+  void tokensForDeletedMembersCanReadPublicDetails() throws Exception {
     memberRepository.deleteById(memberId);
     mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer " + token))
-           .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+           .andExpect(status().isOk()).andExpect(jsonPath("$.historyId").value(originalHistoryId));
   }
 
   @Test
-  @DisplayName("정지된 회원이 세차장을 상세 조회하면 비활성 계정 오류를 반환한다.")
-  void inactiveMembersCannotQueryOrChangeTheRepresentative() throws Exception {
+  @DisplayName("정지된 회원도 공개 상세 정보를 조회할 수 있다.")
+  void inactiveMembersCanReadPublicDetails() throws Exception {
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", memberId);
     mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer " + token))
-           .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
+           .andExpect(status().isOk()).andExpect(jsonPath("$.historyId").value(originalHistoryId));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("공개 상세와 사진 이외의 조회 경로는 익명 접근을 허용하지 않는다.")
+  @ValueSource(strings = {"/car-washes", "/car-washes/1/histories", "/car-wash-photos", "/car-wash-photos/1/metadata"})
+  void otherReadPathsRemainProtected(String path) throws Exception {
+    mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("공개 조회를 허용해도 잘못된 토큰의 등록과 수정 요청은 인증 오류를 반환한다.")
+  void invalidTokensCannotRegisterOrModifyCarWashes() throws Exception {
+    mockMvc.perform(post("/car-washes").header("Authorization", "Bearer invalid-token")
+                                       .contentType(MediaType.APPLICATION_JSON).content(SNAPSHOT))
+           .andExpect(status().isUnauthorized());
+    mockMvc.perform(post("/car-washes/{id}/histories", carWashId).header("Authorization", "Bearer invalid-token")
+                                                                 .contentType(MediaType.APPLICATION_JSON).content(modification()))
+           .andExpect(status().isUnauthorized());
+    assertThat(carWashRepository.count()).isEqualTo(1);
+    assertThat(historyRepository.count()).isEqualTo(1);
   }
 
   private String modification() {

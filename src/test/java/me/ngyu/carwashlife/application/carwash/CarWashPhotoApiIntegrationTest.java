@@ -207,8 +207,8 @@ class CarWashPhotoApiIntegrationTest {
   }
 
   @Test
-  @DisplayName("미첨부 사진은 소유자에게만 공개하고 이력에 첨부한 사진은 다른 활성 회원에게도 공개한다.")
-  void pendingPhotosArePrivateAndAttachedPhotosCanBeReadByOtherActiveMembers() throws Exception {
+  @DisplayName("미첨부 사진은 소유자에게만 공개하고 첨부한 사진과 상세 정보는 비회원도 조회할 수 있다.")
+  void pendingPhotosArePrivateAndAttachedPhotosAndDetailsArePublic() throws Exception {
     Long photoId = upload();
     byte[] bytes = image("png");
     mockMvc.perform(get("/car-wash-photos/{id}", photoId).header("Authorization", "Bearer " + token))
@@ -216,11 +216,15 @@ class CarWashPhotoApiIntegrationTest {
            .andExpect(header().string("X-Content-Type-Options", "nosniff")).andExpect(content().bytes(bytes));
     mockMvc.perform(get("/car-wash-photos/{id}", photoId).header("Authorization", "Bearer " + otherToken))
            .andExpect(status().isNotFound());
+    mockMvc.perform(get("/car-wash-photos/{id}", photoId))
+           .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("CAR_WASH_PHOTO_NOT_FOUND"));
     Long carWashId = register(List.of(photoId), 5);
+    mockMvc.perform(get("/car-wash-photos/{id}", photoId))
+           .andExpect(status().isOk()).andExpect(content().bytes(bytes));
     mockMvc.perform(get("/car-wash-photos/{id}", photoId).header("Authorization", "Bearer " + otherToken))
            .andExpect(status().isOk()).andExpect(content().bytes(bytes));
     Long historyId = carWashRepository.findById(carWashId).orElseThrow().getTargetHistory().getId();
-    mockMvc.perform(get("/car-washes/{id}", carWashId).header("Authorization", "Bearer " + token))
+    mockMvc.perform(get("/car-washes/{id}", carWashId))
            .andExpect(status().isOk()).andExpect(jsonPath("$.confidence").value(5))
            .andExpect(jsonPath("$.photos[0].photoId").value(photoId))
            .andExpect(jsonPath("$.photos[0].url").value("/car-wash-photos/" + photoId))
@@ -375,17 +379,66 @@ class CarWashPhotoApiIntegrationTest {
   }
 
   @Test
-  @DisplayName("인증하지 않았거나 활성 회원이 아니면 사진 업로드와 조회를 거절한다.")
-  void authenticationAndActiveAccountsAreRequiredForUploadsAndReads() throws Exception {
+  @DisplayName("인증하지 않았거나 활성 회원이 아니면 사진 업로드를 거절한다.")
+  void authenticationAndActiveAccountsAreRequiredForUploads() throws Exception {
     MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", image("png"));
     mockMvc.perform(multipart("/car-wash-photos").file(file)).andExpect(status().isUnauthorized());
-    Long photoId = upload();
-    mockMvc.perform(get("/car-wash-photos/{id}", photoId)).andExpect(status().isUnauthorized());
+    mockMvc.perform(multipart("/car-wash-photos").file(file).header("Authorization", "Bearer invalid-token"))
+           .andExpect(status().isUnauthorized());
     jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", memberId);
     mockMvc.perform(multipart("/car-wash-photos").file(file).header("Authorization", "Bearer " + token)).andExpect(status().isForbidden());
-    mockMvc.perform(get("/car-wash-photos/{id}", photoId).header("Authorization", "Bearer " + token)).andExpect(status().isForbidden());
     memberRepository.deleteById(memberId);
     mockMvc.perform(multipart("/car-wash-photos").file(file).header("Authorization", "Bearer " + token)).andExpect(status().isUnauthorized());
+    assertThat(photoRepository.count()).isZero();
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("첨부 사진은 잘못된 토큰이나 정지·삭제된 회원의 토큰으로도 조회할 수 있다.")
+  @ValueSource(strings = {"INVALID_TOKEN", "SUSPENDED", "DELETED"})
+  void attachedPhotosArePublicRegardlessOfTokenOrMemberState(String state) throws Exception {
+    Long photoId = upload();
+    register(List.of(photoId), 5);
+    String readToken = token;
+    if (state.equals("INVALID_TOKEN")) {
+      readToken = "invalid-token";
+    } else if (state.equals("SUSPENDED")) {
+      jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", memberId);
+    } else {
+      memberRepository.deleteById(memberId);
+    }
+
+    mockMvc.perform(get("/car-wash-photos/{id}", photoId).header("Authorization", "Bearer " + readToken))
+           .andExpect(status().isOk()).andExpect(content().contentType("image/png"))
+           .andExpect(content().bytes(image("png")));
+  }
+
+  @Test
+  @DisplayName("잘못된 토큰은 익명으로 취급하여 미첨부 사진 조회에 404를 반환한다.")
+  void invalidTokensCannotReadPendingPhotos() throws Exception {
+    Long photoId = upload();
+
+    mockMvc.perform(get("/car-wash-photos/{id}", photoId).header("Authorization", "Bearer invalid-token"))
+           .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("CAR_WASH_PHOTO_NOT_FOUND"));
+  }
+
+  @Test
+  @DisplayName("정지된 소유자는 미첨부 사진 조회에 비활성 계정 오류를 받는다.")
+  void inactiveOwnersCannotReadPendingPhotos() throws Exception {
+    Long photoId = upload();
+    jdbcTemplate.update("update members set status = 'SUSPENDED' where id = ?", memberId);
+
+    mockMvc.perform(get("/car-wash-photos/{id}", photoId).header("Authorization", "Bearer " + token))
+           .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
+  }
+
+  @Test
+  @DisplayName("삭제된 소유자의 토큰으로 미첨부 사진을 조회하면 인증 오류를 반환한다.")
+  void deletedOwnersCannotReadPendingPhotos() throws Exception {
+    Long photoId = upload();
+    memberRepository.deleteById(memberId);
+
+    mockMvc.perform(get("/car-wash-photos/{id}", photoId).header("Authorization", "Bearer " + token))
+           .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
   }
 
   @Test

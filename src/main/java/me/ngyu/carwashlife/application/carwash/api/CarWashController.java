@@ -43,8 +43,7 @@ public class CarWashController {
   }
 
   @GetMapping("/{carWashId}")
-  public CarWashDetailDto.Response findDetail(@PathVariable Long carWashId,
-                                              @AuthenticationPrincipal Long memberId) {
-    return queryService.findDetail(memberId, carWashId);
+  public CarWashDetailDto.Response findDetail(@PathVariable Long carWashId) {
+    return queryService.findDetail(carWashId);
   }
 }

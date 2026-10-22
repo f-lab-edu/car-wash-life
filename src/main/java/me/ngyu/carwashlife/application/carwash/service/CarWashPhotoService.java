@@ -67,11 +67,13 @@ public class CarWashPhotoService {
 
   @Transactional(readOnly = true)
   public PhotoContent read(Long memberId, Long photoId) {
-    requireActiveMember(memberId);
     CarWashPhoto photo = photoRepository.findById(photoId)
                                         .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_PHOTO_NOT_FOUND));
     if (!photo.canReadBy(memberId)) {
       throw new ApplicationException(ErrorCode.CAR_WASH_PHOTO_NOT_FOUND);
+    }
+    if (photo.isPending()) {
+      requireActiveMember(memberId);
     }
     try {
       byte[] content = storage.read(photo.getStorageKey());

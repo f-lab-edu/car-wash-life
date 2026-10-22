@@ -2,6 +2,8 @@
 
 적용 API는 등록 `POST /car-washes`, 수정 `POST /car-washes/{carWashId}/histories`, 상세 조회 `GET /car-washes/{carWashId}`다.
 
+상세 정보는 로그인 여부와 회원 상태에 관계없이 조회할 수 있다. 등록과 수정에는 활성 회원의 AccessToken이 필요하다.
+
 ## 확인한 정보와 미확인 정보
 
 사용자는 관찰 시점에 직접 확인한 값을 제출한다. 이름·위도·경도는 필수이며, 가격·주소·시설 등 선택 항목을 모르면 비워서 제출할 수 있다.

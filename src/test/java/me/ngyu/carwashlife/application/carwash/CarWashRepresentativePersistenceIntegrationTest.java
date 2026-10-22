@@ -156,7 +156,7 @@ class CarWashRepresentativePersistenceIntegrationTest {
       }));
       assertThat(modified.await(10, TimeUnit.SECONDS)).isTrue();
 
-      Future<CarWashDetailDto.Response> reader = executor.submit(() -> queryService.findDetail(memberId, original.carWashId()));
+      Future<CarWashDetailDto.Response> reader = executor.submit(() -> queryService.findDetail(original.carWashId()));
       CarWashDetailDto.Response beforeCommit = reader.get(5, TimeUnit.SECONDS);
       assertThat(beforeCommit.historyId()).isEqualTo(original.historyId());
       assertThat(beforeCommit.name()).isEqualTo("세차생활");
@@ -166,7 +166,7 @@ class CarWashRepresentativePersistenceIntegrationTest {
 
       commit.countDown();
       ModifyCarWashDto.Response modification = writer.get(10, TimeUnit.SECONDS);
-      CarWashDetailDto.Response afterCommit = queryService.findDetail(memberId, original.carWashId());
+      CarWashDetailDto.Response afterCommit = queryService.findDetail(original.carWashId());
       assertThat(afterCommit.historyId()).isEqualTo(modification.historyId());
       assertThat(afterCommit.name()).isEqualTo("새 대표");
       assertThat(afterCommit.latitude()).isEqualTo(37.6);
