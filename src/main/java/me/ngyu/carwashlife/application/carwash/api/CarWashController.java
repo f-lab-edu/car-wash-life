@@ -6,9 +6,7 @@ import me.ngyu.carwashlife.application.carwash.api.dto.CarWashDetailDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashExplorationDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
-import me.ngyu.carwashlife.application.carwash.service.CarWashModificationService;
-import me.ngyu.carwashlife.application.carwash.service.CarWashQueryService;
-import me.ngyu.carwashlife.application.carwash.service.CarWashRegistrationService;
+import me.ngyu.carwashlife.application.carwash.service.CarWashService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,15 +23,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class CarWashController {
 
-  private final CarWashRegistrationService registrationService;
-  private final CarWashModificationService modificationService;
-  private final CarWashQueryService queryService;
+  private final CarWashService carWashService;
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public RegisterCarWashDto.Response register(@AuthenticationPrincipal Long memberId,
                                               @Valid @RequestBody RegisterCarWashDto.Request request) {
-    return registrationService.register(memberId, request);
+    return carWashService.register(memberId, request);
   }
 
   @PostMapping("/{carWashId}/histories")
@@ -41,16 +37,16 @@ public class CarWashController {
   public ModifyCarWashDto.Response modify(@PathVariable Long carWashId,
                                           @AuthenticationPrincipal Long memberId,
                                           @Valid @RequestBody ModifyCarWashDto.Request request) {
-    return modificationService.modify(memberId, carWashId, request);
+    return carWashService.modify(memberId, carWashId, request);
   }
 
   @GetMapping
   public CarWashExplorationDto.Response findWithinBounds(@Valid @ModelAttribute CarWashExplorationDto.Request request) {
-    return queryService.findWithinBounds(request.toDomain(), request.toCurrentCoordinates());
+    return carWashService.findWithinBounds(request.toDomain(), request.toCurrentCoordinates());
   }
 
   @GetMapping("/{carWashId}")
   public CarWashDetailDto.Response findDetail(@PathVariable Long carWashId) {
-    return queryService.findDetail(carWashId);
+    return carWashService.findDetail(carWashId);
   }
 }

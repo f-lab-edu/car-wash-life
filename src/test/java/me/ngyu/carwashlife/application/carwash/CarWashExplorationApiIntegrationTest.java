@@ -15,8 +15,7 @@ import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
-import me.ngyu.carwashlife.application.carwash.service.CarWashModificationService;
-import me.ngyu.carwashlife.application.carwash.service.CarWashRegistrationService;
+import me.ngyu.carwashlife.application.carwash.service.CarWashService;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
@@ -48,9 +47,7 @@ class CarWashExplorationApiIntegrationTest {
   @Autowired
   private MockMvc mockMvc;
   @Autowired
-  private CarWashRegistrationService registrationService;
-  @Autowired
-  private CarWashModificationService modificationService;
+  private CarWashService carWashService;
   @Autowired
   private CarWashRepository carWashRepository;
   @Autowired
@@ -117,8 +114,8 @@ class CarWashExplorationApiIntegrationTest {
     RegisterCarWashDto.Response first = register("대표 이름", "서울", 37.5, 127.5);
     RegisterCarWashDto.Response second = register("다른 세차장", "경기", 37.6, 127.6);
     clock.setInstant(NOW.plusHours(3).toInstant());
-    modificationService.modify(memberId, first.carWashId(), new ModifyCarWashDto.Request(first.historyId(), VisitExperience.NOT_USED,
-                                                                                         NOW.minusDays(2), information("낮은 신뢰도 제보", "부산", 35.5, 129.5), List.of()));
+    carWashService.modify(memberId, first.carWashId(), new ModifyCarWashDto.Request(first.historyId(), VisitExperience.NOT_USED,
+                                                                                    NOW.minusDays(2), information("낮은 신뢰도 제보", "부산", 35.5, 129.5), List.of()));
 
     mockMvc.perform(bounds("37", "127", "38", "128"))
            .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(2))
@@ -185,8 +182,8 @@ class CarWashExplorationApiIntegrationTest {
   @DisplayName("대표 정보의 위치가 이동하면 예전 범위에서 제외하고 새 범위에 현재 이름과 주소를 반환한다.")
   void currentRepresentativeCoordinatesAndAddressDetermineTheResult() throws Exception {
     RegisterCarWashDto.Response original = register("예전 이름", "예전 주소", 37.5, 127.5);
-    modificationService.modify(memberId, original.carWashId(), new ModifyCarWashDto.Request(original.historyId(), VisitExperience.USED,
-                                                                                             NOW.minusHours(1), information("현재 이름", "현재 주소", 35.5, 129.5), List.of()));
+    carWashService.modify(memberId, original.carWashId(), new ModifyCarWashDto.Request(original.historyId(), VisitExperience.USED,
+                                                                                       NOW.minusHours(1), information("현재 이름", "현재 주소", 35.5, 129.5), List.of()));
     long historyCount = historyRepository.count();
     OffsetDateTime updatedAt = carWashRepository.findById(original.carWashId()).orElseThrow().getUpdatedAt();
 
@@ -311,8 +308,8 @@ class CarWashExplorationApiIntegrationTest {
   }
 
   private RegisterCarWashDto.Response register(String name, String address, double latitude, double longitude) {
-    return registrationService.register(memberId, new RegisterCarWashDto.Request(VisitExperience.USED, NOW.minusDays(1),
-                                                                                 information(name, address, latitude, longitude), List.of()));
+    return carWashService.register(memberId, new RegisterCarWashDto.Request(VisitExperience.USED, NOW.minusDays(1),
+                                                                            information(name, address, latitude, longitude), List.of()));
   }
 
   private CarWashInformationDto.Request information(String name, String address, double latitude, double longitude) {

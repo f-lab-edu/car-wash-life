@@ -37,8 +37,8 @@ import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 import me.ngyu.carwashlife.application.carwash.service.CarWashPhotoService;
-import me.ngyu.carwashlife.application.carwash.service.CarWashRegistrationService;
 import me.ngyu.carwashlife.application.carwash.service.CarWashRepresentativeService;
+import me.ngyu.carwashlife.application.carwash.service.CarWashService;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -103,7 +103,7 @@ class CarWashPhotoApiIntegrationTest {
   @Autowired
   private CarWashPhotoService photoService;
   @Autowired
-  private CarWashRegistrationService registrationService;
+  private CarWashService carWashService;
   @Autowired
   private CarWashRepresentativeService representativeService;
   @Autowired
@@ -571,9 +571,9 @@ class CarWashPhotoApiIntegrationTest {
             throw new IllegalStateException("사진 소비 시작 대기 시간 초과");
           }
           try {
-            registrationService.register(memberId, new RegisterCarWashDto.Request(VisitExperience.USED, NOW.minusDays(1),
-                                                                                  new CarWashInformationDto.Request("세차생활", null, 37.5, 127.0, null, null, null, null, null, null, null, null, null),
-                                                                                  List.of(photoId)));
+            carWashService.register(memberId, new RegisterCarWashDto.Request(VisitExperience.USED, NOW.minusDays(1),
+                                                                             new CarWashInformationDto.Request("세차생활", null, 37.5, 127.0, null, null, null, null, null, null, null, null, null),
+                                                                             List.of(photoId)));
             return true;
           } catch (ApplicationException exception) {
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.VALIDATION_ERROR);

@@ -17,9 +17,7 @@ import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
-import me.ngyu.carwashlife.application.carwash.service.CarWashModificationService;
-import me.ngyu.carwashlife.application.carwash.service.CarWashQueryService;
-import me.ngyu.carwashlife.application.carwash.service.CarWashRegistrationService;
+import me.ngyu.carwashlife.application.carwash.service.CarWashService;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashPhotoRepository;
@@ -50,11 +48,7 @@ class CarWashRepresentativePersistenceIntegrationTest {
   @Autowired
   private MemberRepository memberRepository;
   @Autowired
-  private CarWashRegistrationService registrationService;
-  @Autowired
-  private CarWashModificationService modificationService;
-  @Autowired
-  private CarWashQueryService queryService;
+  private CarWashService carWashService;
   @Autowired
   private PlatformTransactionManager transactionManager;
   @Autowired
@@ -73,13 +67,13 @@ class CarWashRepresentativePersistenceIntegrationTest {
     carWashRepository.deleteAllInBatch();
     memberRepository.deleteAllInBatch();
     memberId = memberRepository.saveAndFlush(Member.create("locking@example.com", "encoded", null, null, null, NOW)).getId();
-    original = registrationService.register(memberId, registration("세차생활"));
+    original = carWashService.register(memberId, registration("세차생활"));
   }
 
   @Test
   @DisplayName("원장 잠금 조회는 요청한 세차장에 비관적 쓰기 잠금을 적용하고 해당 세차장의 이력만 조회한다.")
   void explicitMasterQueryLoadsOnlyTheRequestedMasterWithAPessimisticWriteLock() {
-    RegisterCarWashDto.Response other = registrationService.register(memberId, registration("다른 세차장"));
+    RegisterCarWashDto.Response other = carWashService.register(memberId, registration("다른 세차장"));
 
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
       CarWash locked = carWashRepository.findByIdForUpdate(original.carWashId()).orElseThrow();
@@ -103,14 +97,14 @@ class CarWashRepresentativePersistenceIntegrationTest {
         if (!start.await(10, TimeUnit.SECONDS)) {
           throw new IllegalStateException("동시 수정 시작 대기 시간 초과");
         }
-        return modificationService.modify(memberId, original.carWashId(), modification("최신 관찰", 37.6, NOW.minusDays(1)));
+        return carWashService.modify(memberId, original.carWashId(), modification("최신 관찰", 37.6, NOW.minusDays(1)));
       });
       Future<ModifyCarWashDto.Response> second = executor.submit(() -> {
         ready.countDown();
         if (!start.await(10, TimeUnit.SECONDS)) {
           throw new IllegalStateException("동시 수정 시작 대기 시간 초과");
         }
-        return modificationService.modify(memberId, original.carWashId(), modification("이전 관찰", 37.7, NOW.minusDays(3)));
+        return carWashService.modify(memberId, original.carWashId(), modification("이전 관찰", 37.7, NOW.minusDays(3)));
       });
       assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
       start.countDown();
@@ -141,7 +135,7 @@ class CarWashRepresentativePersistenceIntegrationTest {
     ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
       Future<ModifyCarWashDto.Response> writer = executor.submit(() -> new TransactionTemplate(transactionManager).execute(status -> {
-        ModifyCarWashDto.Response response = modificationService.modify(memberId, original.carWashId(), modification("새 대표", 37.6, NOW.minusDays(1)));
+        ModifyCarWashDto.Response response = carWashService.modify(memberId, original.carWashId(), modification("새 대표", 37.6, NOW.minusDays(1)));
         entityManager.flush();
         modified.countDown();
         try {
@@ -156,7 +150,7 @@ class CarWashRepresentativePersistenceIntegrationTest {
       }));
       assertThat(modified.await(10, TimeUnit.SECONDS)).isTrue();
 
-      Future<CarWashDetailDto.Response> reader = executor.submit(() -> queryService.findDetail(original.carWashId()));
+      Future<CarWashDetailDto.Response> reader = executor.submit(() -> carWashService.findDetail(original.carWashId()));
       CarWashDetailDto.Response beforeCommit = reader.get(5, TimeUnit.SECONDS);
       assertThat(beforeCommit.historyId()).isEqualTo(original.historyId());
       assertThat(beforeCommit.name()).isEqualTo("세차생활");
@@ -166,7 +160,7 @@ class CarWashRepresentativePersistenceIntegrationTest {
 
       commit.countDown();
       ModifyCarWashDto.Response modification = writer.get(10, TimeUnit.SECONDS);
-      CarWashDetailDto.Response afterCommit = queryService.findDetail(original.carWashId());
+      CarWashDetailDto.Response afterCommit = carWashService.findDetail(original.carWashId());
       assertThat(afterCommit.historyId()).isEqualTo(modification.historyId());
       assertThat(afterCommit.name()).isEqualTo("새 대표");
       assertThat(afterCommit.latitude()).isEqualTo(37.6);
