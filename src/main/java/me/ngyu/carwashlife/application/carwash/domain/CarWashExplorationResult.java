@@ -9,5 +9,6 @@ public record CarWashExplorationResult(Long carWashId,
                                        double longitude,
                                        long reportCount,
                                        OffsetDateTime latestSubmittedAt,
-                                       OffsetDateTime createdAt) {
+                                       OffsetDateTime createdAt,
+                                       Double distanceMeters) {
 }

@@ -1,6 +1,7 @@
 package me.ngyu.carwashlife.application.carwash;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -105,6 +106,7 @@ class CarWashExplorationApiIntegrationTest {
              assertThat(OffsetDateTime.parse(latestSubmittedAt).toInstant()).isEqualTo(NOW.toInstant());
              assertThat(OffsetDateTime.parse(createdAt).toInstant()).isEqualTo(NOW.toInstant());
            })
+           .andExpect(jsonPath("$.carWashes[0].distanceMeters").value(org.hamcrest.Matchers.nullValue()))
            .andExpect(jsonPath("$.carWashes[0].memberId").doesNotExist())
            .andExpect(jsonPath("$.hasMore").value(false));
   }
@@ -229,6 +231,83 @@ class CarWashExplorationApiIntegrationTest {
 
     mockMvc.perform(bounds("37", "127", "38", "128").header("Authorization", "Bearer invalid-token"))
            .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(1));
+  }
+
+  @Test
+  @DisplayName("현재 위치가 있으면 거리를 미터로 반환하고 같은 거리의 세차장은 ID 순서로 조회한다.")
+  void currentLocationReturnsDistanceInMetersAndOrdersTiesById() throws Exception {
+    Long farther = register("먼 세차장", null, 0, 2).carWashId();
+    Long firstTie = register("같은 거리 첫 번째", null, 0, 1).carWashId();
+    Long secondTie = register("같은 거리 두 번째", null, 0, -1).carWashId();
+    Long coincident = register("현재 위치", null, 0, 0).carWashId();
+
+    mockMvc.perform(bounds("-1", "-3", "1", "3").queryParam("currentLatitude", "0").queryParam("currentLongitude", "0"))
+           .andExpect(status().isOk())
+           .andExpect(result -> {
+             String json = result.getResponse().getContentAsString();
+             List<Number> ids = JsonPath.read(json, "$.carWashes[*].carWashId");
+             assertThat(ids.stream().map(Number::longValue).toList()).containsExactly(coincident, firstTie, secondTie, farther);
+             Number zero = JsonPath.read(json, "$.carWashes[0].distanceMeters");
+             Number oneDegree = JsonPath.read(json, "$.carWashes[1].distanceMeters");
+             assertThat(zero.doubleValue()).isZero();
+             assertThat(oneDegree.doubleValue()).isCloseTo(111195.0802, within(0.01));
+           });
+  }
+
+  @Test
+  @DisplayName("현재 위치가 지도 범위 밖이어도 거리 기준점으로만 사용하고 범위 내 세차장을 조회한다.")
+  void currentLocationMayBeOutsideTheMapBounds() throws Exception {
+    register("범위 내", null, 37.5, 127.5);
+    register("범위 밖 현재 위치", null, 0, 0);
+
+    mockMvc.perform(bounds("37", "127", "38", "128").queryParam("currentLatitude", "0").queryParam("currentLongitude", "0"))
+           .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(1))
+           .andExpect(jsonPath("$.carWashes[0].name").value("범위 내"))
+           .andExpect(jsonPath("$.carWashes[0].distanceMeters").isNumber());
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("거리순으로 먼저 제한하므로 큰 ID의 최근접 세차장도 포함하고 추가 결과 여부를 반환한다.")
+  @ValueSource(ints = {100, 101})
+  void distanceOrderIsAppliedBeforeTheDatabaseLimit(int count) throws Exception {
+    List<Long> farIds = new ArrayList<>();
+    for (int i = 0; i < count - 1; i++) {
+      farIds.add(register("먼 세차장 " + i, null, 37.9, 127.9).carWashId());
+    }
+    Long nearestId = register("마지막 ID 최근접", null, 37.5, 127.5).carWashId();
+
+    mockMvc.perform(bounds("37", "127", "38", "128").queryParam("currentLatitude", "37.5").queryParam("currentLongitude", "127.5"))
+           .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(100))
+           .andExpect(jsonPath("$.carWashes[0].carWashId").value(nearestId))
+           .andExpect(jsonPath("$.hasMore").value(count > 100))
+           .andExpect(result -> {
+             List<Number> ids = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[*].carWashId");
+             List<Long> expected = new ArrayList<>();
+             expected.add(nearestId);
+             expected.addAll(farIds.subList(0, 99));
+             assertThat(ids.stream().map(Number::longValue).toList()).containsExactlyElementsOf(expected);
+           });
+  }
+
+  @Test
+  @DisplayName("현재 위치가 있어도 지도 범위에 세차장이 없으면 빈 결과를 반환한다.")
+  void emptyBoundsWithCurrentLocationReturnAnEmptyList() throws Exception {
+    mockMvc.perform(bounds("37", "127", "38", "128").queryParam("currentLatitude", "37.5").queryParam("currentLongitude", "127.5"))
+           .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes").isEmpty()).andExpect(jsonPath("$.hasMore").value(false));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("현재 위치의 일부 누락과 문자·유한하지 않은 값·범위 초과는 검증 오류를 반환한다.")
+  @CsvSource({",127", "37,", "text,127", "37,text", "NaN,127", "37,NaN", "Infinity,127", "37,-Infinity", "-91,127", "91,127", "37,-181", "37,181"})
+  void invalidCurrentCoordinatesReturnBadRequest(String latitude, String longitude) throws Exception {
+    MockHttpServletRequestBuilder request = bounds("37", "127", "38", "128");
+    if (latitude != null) {
+      request.queryParam("currentLatitude", latitude);
+    }
+    if (longitude != null) {
+      request.queryParam("currentLongitude", longitude);
+    }
+    mockMvc.perform(request).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
   }
 
   private RegisterCarWashDto.Response register(String name, String address, double latitude, double longitude) {

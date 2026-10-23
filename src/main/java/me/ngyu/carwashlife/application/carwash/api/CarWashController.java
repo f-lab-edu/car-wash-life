@@ -46,7 +46,7 @@ public class CarWashController {
 
   @GetMapping
   public CarWashExplorationDto.Response findWithinBounds(@Valid @ModelAttribute CarWashExplorationDto.Request request) {
-    return queryService.findWithinBounds(request.toDomain());
+    return queryService.findWithinBounds(request.toDomain(), request.toCurrentCoordinates());
   }
 
   @GetMapping("/{carWashId}")

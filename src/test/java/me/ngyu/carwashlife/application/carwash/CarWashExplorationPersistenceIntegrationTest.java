@@ -2,6 +2,7 @@ package me.ngyu.carwashlife.application.carwash;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.assertj.core.api.Assertions.within;
 
 import jakarta.persistence.EntityManager;
 import java.time.OffsetDateTime;
@@ -19,6 +20,8 @@ import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Limit;
@@ -65,6 +68,7 @@ class CarWashExplorationPersistenceIntegrationTest {
 
     assertThat(results).extracting(CarWashExplorationResult::carWashId).containsExactly(firstId, secondId);
     assertThat(results).extracting(CarWashExplorationResult::address).containsExactly("서울", "경기");
+    assertThat(results).extracting(CarWashExplorationResult::distanceMeters).containsOnlyNulls();
   }
 
   @Test
@@ -90,8 +94,52 @@ class CarWashExplorationPersistenceIntegrationTest {
                           .containsExactlyInAnyOrder(tuple(first.getId(), 2L, NOW.plusHours(3).toInstant()), tuple(second.getId(), 1L, NOW.toInstant()));
   }
 
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("동일 위치·매우 가까운 위치·극점·대척점에서도 거리는 유한한 음수 아닌 미터 값이다.")
+  @CsvSource({"0,0,0,0,0", "0,0,0,0.000000001,0.000111195", "90,0,90,180,0", "0,0,0,180,20015114.442",
+          "-90,-180,90,180,20015114.442", "37.5,127.5,-37.5,-52.5,20015114.442"})
+  void distancesRemainFiniteAtNumericalBoundaries(double originLatitude, double originLongitude, double latitude, double longitude, double expectedMeters) {
+    save("거리 검증", "주소", new Coordinates(latitude, longitude));
+    entityManager.flush();
+    entityManager.clear();
+    MapBounds world = new MapBounds(new Coordinates(-90.0, -180.0), new Coordinates(90.0, 180.0));
+
+    List<CarWashExplorationResult> results = carWashRepository.findWithinBoundsByDistance(world, new Coordinates(originLatitude, originLongitude), Limit.of(101));
+
+    assertThat(results).hasSize(1);
+    assertThat(results.getFirst().distanceMeters()).isFinite().isNotNegative().isCloseTo(expectedMeters, within(0.01));
+  }
+
+  @Test
+  @DisplayName("거리 조회도 대표 정보와 비대표 제보를 포함한 집계를 반환한다.")
+  void distanceQueryPreservesRepresentativeInformationAndReportActivity() {
+    CarWash carWash = save("대표 이름", "대표 주소");
+    CarWashInformation corrected = CarWashInformation.builder().name("비대표 이름").coordinates(new Coordinates(35.5, 129.5)).build();
+    historyRepository.save(CarWashHistory.modify(carWash, carWash.getTargetHistory(), 1L, VisitExperience.NOT_USED,
+                                                  NOW.minusDays(2), NOW.plusHours(3), corrected));
+    entityManager.flush();
+    entityManager.clear();
+    MapBounds bounds = new MapBounds(new Coordinates(37.0, 127.0), new Coordinates(38.0, 128.0));
+
+    List<CarWashExplorationResult> results = carWashRepository.findWithinBoundsByDistance(bounds, new Coordinates(37.5, 127.5), Limit.of(101));
+
+    assertThat(results).hasSize(1);
+    CarWashExplorationResult result = results.getFirst();
+    assertThat(result.name()).isEqualTo("대표 이름");
+    assertThat(result.address()).isEqualTo("대표 주소");
+    assertThat(result.latitude()).isEqualTo(37.5);
+    assertThat(result.longitude()).isEqualTo(127.5);
+    assertThat(result.reportCount()).isEqualTo(2);
+    assertThat(result.latestSubmittedAt().toInstant()).isEqualTo(NOW.plusHours(3).toInstant());
+    assertThat(result.createdAt().toInstant()).isEqualTo(NOW.toInstant());
+    assertThat(result.distanceMeters()).isZero();
+  }
+
   private CarWash save(String name, String address) {
-    Coordinates coordinates = new Coordinates(37.5, 127.5);
+    return save(name, address, new Coordinates(37.5, 127.5));
+  }
+
+  private CarWash save(String name, String address, Coordinates coordinates) {
     CarWash carWash = carWashRepository.save(CarWash.create(name, coordinates, NOW));
     CarWashInformation information = CarWashInformation.builder().name(name).address(address).coordinates(coordinates).build();
     CarWashHistory history = historyRepository.save(CarWashHistory.register(carWash, 1L, VisitExperience.USED, NOW, NOW, information));

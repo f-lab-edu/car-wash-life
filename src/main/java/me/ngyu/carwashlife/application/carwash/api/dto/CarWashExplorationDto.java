@@ -17,7 +17,20 @@ public class CarWashExplorationDto {
   public record Request(@NotNull Double southwestLatitude,
                         @NotNull Double southwestLongitude,
                         @NotNull Double northeastLatitude,
-                        @NotNull Double northeastLongitude) {
+                        @NotNull Double northeastLongitude,
+                        Double currentLatitude,
+                        Double currentLongitude) {
+
+    public Coordinates toCurrentCoordinates() {
+      if (currentLatitude == null && currentLongitude == null) {
+        return null;
+      }
+      try {
+        return new Coordinates(currentLatitude, currentLongitude);
+      } catch (IllegalArgumentException exception) {
+        throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
+      }
+    }
 
     public MapBounds toDomain() {
       try {
@@ -42,11 +55,12 @@ public class CarWashExplorationDto {
                                double longitude,
                                long reportCount,
                                OffsetDateTime latestSubmittedAt,
-                               OffsetDateTime createdAt) {
+                               OffsetDateTime createdAt,
+                               Double distanceMeters) {
 
     public static CarWashSummary from(CarWashExplorationResult result) {
       return new CarWashSummary(result.carWashId(), result.name(), result.address(), result.latitude(), result.longitude(),
-                                result.reportCount(), result.latestSubmittedAt(), result.createdAt());
+                                result.reportCount(), result.latestSubmittedAt(), result.createdAt(), result.distanceMeters());
     }
   }
 }

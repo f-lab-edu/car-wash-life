@@ -8,6 +8,7 @@ import me.ngyu.carwashlife.application.carwash.api.dto.CarWashDetailDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashExplorationDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashExplorationResult;
+import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.carwash.domain.MapBounds;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -28,8 +29,10 @@ public class CarWashQueryService {
   private final Clock clock;
 
   @Transactional(readOnly = true)
-  public CarWashExplorationDto.Response findWithinBounds(MapBounds bounds) {
-    List<CarWashExplorationResult> rows = carWashRepository.findWithinBounds(bounds, Limit.of(EXPLORATION_LIMIT + 1));
+  public CarWashExplorationDto.Response findWithinBounds(MapBounds bounds, Coordinates currentCoordinates) {
+    List<CarWashExplorationResult> rows = currentCoordinates == null
+                                         ? carWashRepository.findWithinBounds(bounds, Limit.of(EXPLORATION_LIMIT + 1))
+                                         : carWashRepository.findWithinBoundsByDistance(bounds, currentCoordinates, Limit.of(EXPLORATION_LIMIT + 1));
     List<CarWashExplorationResult> visibleRows = rows.subList(0, Math.min(rows.size(), EXPLORATION_LIMIT));
     List<CarWashExplorationDto.CarWashSummary> summaries = visibleRows.stream().map(CarWashExplorationDto.CarWashSummary::from).toList();
     return new CarWashExplorationDto.Response(summaries, rows.size() > EXPLORATION_LIMIT);
