@@ -1,6 +1,68 @@
-# 세차장 제보와 상세 조회
+# 세차장 탐색·제보·상세 조회
 
-적용 API는 등록 `POST /car-washes`, 수정 `POST /car-washes/{carWashId}/histories`, 상세 조회 `GET /car-washes/{carWashId}`다.
+적용 API는 탐색 `GET /car-washes`, 등록 `POST /car-washes`, 수정 `POST /car-washes/{carWashId}/histories`, 상세 조회 `GET /car-washes/{carWashId}`다.
+
+탐색과 상세 정보는 로그인 여부와 회원 상태에 관계없이 조회할 수 있다. 등록과 수정에는 활성 회원의 AccessToken이 필요하다.
+
+## 지도 범위 탐색
+
+`GET /car-washes`에 지도의 남서쪽·북동쪽 좌표를 전달한다. 현재 위치는 필요하지 않다.
+
+| 필수 쿼리 파라미터 | 허용 범위 |
+|---|---|
+| southwestLatitude | -90 ~ 90 |
+| southwestLongitude | -180 ~ 180 |
+| northeastLatitude | -90 ~ 90 |
+| northeastLongitude | -180 ~ 180 |
+
+현재 위치를 함께 보내려면 `currentLatitude`와 `currentLongitude`를 모두 전달한다. 위도·경도 허용 범위는 위와 같으며, 하나만 보내거나 잘못된 좌표를 보내면 `400 VALIDATION_ERROR`를 반환한다.
+현재 위치는 지도 범위 밖이어도 된다.
+
+남서쪽 위도·경도는 각각 북동쪽 값 이하여야 한다. 네 경계를 포함하며, 두 좌표가 같은 범위도 허용한다.
+누락·숫자가 아닌 값·NaN·무한대·허용 범위를 벗어난 좌표·역전된 범위는 `400 VALIDATION_ERROR`를 반환한다. 날짜변경선을 가로지르는 범위는 지원하지 않는다.
+
+```http
+GET /car-washes?southwestLatitude=37.4&southwestLongitude=126.9&northeastLatitude=37.6&northeastLongitude=127.1
+```
+
+```json
+{
+  "carWashes": [
+    {
+      "carWashId": 1,
+      "name": "세차생활",
+      "address": "서울시",
+      "latitude": 37.5,
+      "longitude": 127.0,
+      "reportCount": 3,
+      "latestSubmittedAt": "2026-10-09T12:00:00+09:00",
+      "createdAt": "2026-10-07T12:00:00+09:00",
+      "distanceMeters": null
+    }
+  ],
+  "hasMore": false
+}
+```
+
+현재 대표 좌표로 검색하고 대표 이름·주소·좌표를 반환한다. 주소가 미확인이면 `null`이다. 과거 제보의 좌표는 검색에 사용하지 않는다.
+현재 위치가 없으면 세차장 ID 오름차순으로, 있으면 거리 오름차순·같은 거리에서는 ID 오름차순으로 최대 100개를 반환한다. 더 있으면 `hasMore`가 `true`다. 범위 안 세차장의 전체 건수는 세지 않는다. 결과가 없으면 `carWashes`는 빈 목록이고 `hasMore`는 `false`다.
+추가 결과 여부는 상한보다 한 건 더 조회해 확인하며, 확인용 항목은 응답에 포함하지 않는다.
+추가 결과를 탐색하려면 지도 범위를 좁혀 다시 요청한다. 다음 페이지 조회는 제공하지 않는다.
+
+| 제보 활동 정보 | 의미 |
+|---|---|
+| reportCount | 최초 등록과 모든 수정 제보를 합한 건수 |
+| latestSubmittedAt | 대표 여부와 관계없이 가장 최근에 제출된 제보의 시각 |
+| createdAt | 세차장이 서비스에 최초 등록된 시각 |
+
+최근 제보 시각은 관찰 시각(`observedAt`)이나 대표 정보 갱신 시각(`updatedAt`)과 다르다. 대표로 선택되지 않은 제보도 건수와 최근 제출 시각에 반영한다.
+
+`distanceMeters`는 현재 위치에서 대표 좌표까지의 구면 최단거리이며 단위는 미터다. 도로 이동 거리가 아니며, 반지름 6,371,008.8m인 구형 지구 모델의 Haversine 수식으로 계산한다.
+거리 계산값을 반올림하지 않고 정렬·반환하며, 표시 자릿수는 클라이언트에서 정한다. 현재 위치가 없으면 `null`이다. 거리순 정렬과 조회 상한은 DB에서 적용한다.
+
+```http
+GET /car-washes?southwestLatitude=37.4&southwestLongitude=126.9&northeastLatitude=37.6&northeastLongitude=127.1&currentLatitude=37.5&currentLongitude=127.0
+```
 
 ## 확인한 정보와 미확인 정보
 
