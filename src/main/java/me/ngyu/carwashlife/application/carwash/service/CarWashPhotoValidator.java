@@ -2,37 +2,29 @@ package me.ngyu.carwashlife.application.carwash.service;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.Objects;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.MemoryCacheImageInputStream;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashPhotoUpload;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 
 @Component
 public class CarWashPhotoValidator {
 
-  public static final int MAX_BYTES = 5 * 1024 * 1024;
+  public static final int MAX_BYTES = CarWashPhotoUpload.MAX_BYTES;
   private static final int MAX_DIMENSION = 10000;
   private static final long MAX_PIXELS = 25_000_000L;
 
-  public ValidatedPhoto validate(MultipartFile file) {
-    if (file.isEmpty()) {
+  /**
+   * 업로드 내용의 실제 이미지 형식과 크기 및 해상도를 검증한다.
+   */
+  public ValidatedPhoto validate(CarWashPhotoUpload upload) {
+    byte[] content = upload.content();
+    if (content.length == 0) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
-    }
-    if (file.getSize() > MAX_BYTES) {
-      throw new ApplicationException(ErrorCode.PHOTO_TOO_LARGE);
-    }
-    byte[] content;
-    try (InputStream input = file.getInputStream()) {
-      content = input.readNBytes(MAX_BYTES + 1);
-    } catch (IOException exception) {
-      throw new ApplicationException(ErrorCode.PHOTO_STORAGE_ERROR, exception);
     }
     if (content.length > MAX_BYTES) {
       throw new ApplicationException(ErrorCode.PHOTO_TOO_LARGE);
@@ -52,7 +44,7 @@ public class CarWashPhotoValidator {
         };
         int width = reader.getWidth(0);
         int height = reader.getHeight(0);
-        if (!contentType.equalsIgnoreCase(file.getContentType()) || width <= 0 || height <= 0
+        if (!contentType.equalsIgnoreCase(upload.declaredContentType()) || width <= 0 || height <= 0
                 || width > MAX_DIMENSION || height > MAX_DIMENSION || (long) width * height > MAX_PIXELS || reader.read(0) == null) {
           throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
         }
@@ -74,16 +66,6 @@ public class CarWashPhotoValidator {
     @Override
     public byte[] content() {
       return content.clone();
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      return other instanceof ValidatedPhoto photo && Arrays.equals(content, photo.content) && Objects.equals(contentType, photo.contentType);
-    }
-
-    @Override
-    public int hashCode() {
-      return 31 * Arrays.hashCode(content) + Objects.hashCode(contentType);
     }
 
     @Override

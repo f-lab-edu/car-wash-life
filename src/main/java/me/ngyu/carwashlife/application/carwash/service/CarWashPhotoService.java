@@ -3,17 +3,16 @@ package me.ngyu.carwashlife.application.carwash.service;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashPhotoDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashPhotoUpload;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -23,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -35,10 +33,13 @@ public class CarWashPhotoService {
   private final CarWashPhotoValidator validator;
   private final Clock clock;
 
+  /**
+   * 업로드 내용을 검증하고 파일과 사진 정보를 저장한다.
+   */
   @Transactional
-  public CarWashPhotoDto.Response upload(Long memberId, MultipartFile file) {
+  public CarWashPhotoDto.Response upload(Long memberId, CarWashPhotoUpload upload) {
     requireActiveMember(memberId);
-    CarWashPhotoValidator.ValidatedPhoto photo = validator.validate(file);
+    CarWashPhotoValidator.ValidatedPhoto photo = validator.validate(upload);
     byte[] content = photo.content();
     String key;
     try {
@@ -143,16 +144,6 @@ public class CarWashPhotoService {
     @Override
     public byte[] content() {
       return content.clone();
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      return other instanceof PhotoContent photo && Arrays.equals(content, photo.content) && Objects.equals(contentType, photo.contentType);
-    }
-
-    @Override
-    public int hashCode() {
-      return 31 * Arrays.hashCode(content) + Objects.hashCode(contentType);
     }
 
     @Override

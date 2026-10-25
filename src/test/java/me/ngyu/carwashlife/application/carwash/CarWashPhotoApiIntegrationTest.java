@@ -31,10 +31,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.CRC32;
 import javax.imageio.ImageIO;
-import me.ngyu.carwashlife.application.carwash.api.dto.CarWashInformationDto;
-import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashPhotoUpload;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashRegistration;
+import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 import me.ngyu.carwashlife.application.carwash.service.CarWashPhotoService;
 import me.ngyu.carwashlife.application.carwash.service.CarWashRepresentativeService;
@@ -453,7 +455,7 @@ class CarWashPhotoApiIntegrationTest {
   @DisplayName("업로드를 포함한 트랜잭션을 롤백하면 사진 정보와 실제 파일을 삭제한다.")
   void outerTransactionRollbackRemovesUploadedMetadataAndItsActualFile() throws Exception {
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-      photoService.upload(memberId, new MockMultipartFile("file", "photo.png", "image/png", imageUnchecked()));
+      photoService.upload(memberId, new CarWashPhotoUpload(imageUnchecked(), "image/png"));
       assertThat(photoRepository.count()).isEqualTo(1);
       status.setRollbackOnly();
     });
@@ -469,7 +471,7 @@ class CarWashPhotoApiIntegrationTest {
   void unknownUploadCompletionPreservesTheFileAndLogsItsKeyAndStatus(CapturedOutput output) {
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
       List<TransactionSynchronization> existing = TransactionSynchronizationManager.getSynchronizations();
-      var uploaded = photoService.upload(memberId, new MockMultipartFile("file", "photo.png", "image/png", imageUnchecked()));
+      var uploaded = photoService.upload(memberId, new CarWashPhotoUpload(imageUnchecked(), "image/png"));
       CarWashPhoto photo = photoRepository.findById(uploaded.photoId()).orElseThrow();
       List<TransactionSynchronization> callbacks = TransactionSynchronizationManager.getSynchronizations().stream()
                                                                                     .filter(callback -> !existing.contains(callback)).toList();
@@ -488,7 +490,7 @@ class CarWashPhotoApiIntegrationTest {
   @DisplayName("업로드 트랜잭션의 커밋 과정이 실패하면 사진 정보와 실제 파일을 삭제한다.")
   void failureWhileCommittingAnUploadAlsoRemovesTheFile() throws Exception {
     assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-      photoService.upload(memberId, new MockMultipartFile("file", "photo.png", "image/png", imageUnchecked()));
+      photoService.upload(memberId, new CarWashPhotoUpload(imageUnchecked(), "image/png"));
       TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
         @Override
         public void beforeCommit(boolean readOnly) {
@@ -571,9 +573,8 @@ class CarWashPhotoApiIntegrationTest {
             throw new IllegalStateException("사진 소비 시작 대기 시간 초과");
           }
           try {
-            carWashService.register(memberId, new RegisterCarWashDto.Request(VisitExperience.USED, NOW.minusDays(1),
-                                                                             new CarWashInformationDto.Request("세차생활", null, 37.5, 127.0, null, null, null, null, null, null, null, null, null),
-                                                                             List.of(photoId)));
+            CarWashInformation information = CarWashInformation.builder().name("세차생활").coordinates(new Coordinates(37.5, 127.0)).build();
+            carWashService.register(memberId, new CarWashRegistration(VisitExperience.USED, NOW.minusDays(1), information, List.of(photoId)));
             return true;
           } catch (ApplicationException exception) {
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.VALIDATION_ERROR);

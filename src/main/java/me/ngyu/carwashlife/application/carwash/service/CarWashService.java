@@ -9,12 +9,14 @@ import me.ngyu.carwashlife.application.carwash.api.dto.CarWashExplorationDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashExploration;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashExplorationResult;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashModification;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashRegistration;
 import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
-import me.ngyu.carwashlife.application.carwash.domain.MapBounds;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -43,18 +45,19 @@ public class CarWashService {
    * 세차장과 최초 제보를 등록하고 사진 연결과 대표 정보 반영을 처리한다.
    */
   @Transactional
-  public RegisterCarWashDto.Response register(Long memberId, RegisterCarWashDto.Request request) {
+  public RegisterCarWashDto.Response register(Long memberId, CarWashRegistration registration) {
     Member member = requireActiveMember(memberId);
 
-    List<CarWashPhoto> photos = photoService.lockPendingPhotos(member.getId(), request.photoIds());
+    List<CarWashPhoto> photos = photoService.lockPendingPhotos(member.getId(), registration.photoIds());
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
 
     CarWash carWash;
     CarWashHistory history;
     try {
-      CarWashInformation information = request.information().toDomain();
+      CarWashInformation information = registration.information();
       carWash = CarWash.create(information.name(), information.coordinates(), submittedAt);
-      history = CarWashHistory.register(carWash, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information, photos.stream().map(CarWashPhoto::getId).toList());
+      history = CarWashHistory.register(carWash, member.getId(), registration.visitExperience(), registration.observedAt(), submittedAt, information,
+                                        photos.stream().map(CarWashPhoto::getId).toList());
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
     }
@@ -72,20 +75,19 @@ public class CarWashService {
    * 기존 세차장에 수정 제보를 추가하고 대표 정보를 다시 선정한다.
    */
   @Transactional
-  public ModifyCarWashDto.Response modify(Long memberId, Long carWashId, ModifyCarWashDto.Request request) {
+  public ModifyCarWashDto.Response modify(Long memberId, Long carWashId, CarWashModification modification) {
     Member member = requireActiveMember(memberId);
 
     CarWash carWash = carWashRepository.findByIdForUpdate(carWashId)
                                        .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_NOT_FOUND));
-    CarWashHistory baseHistory = historyRepository.findById(request.baseHistoryId())
+    CarWashHistory baseHistory = historyRepository.findById(modification.baseHistoryId())
                                                   .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_HISTORY_NOT_FOUND));
-    List<CarWashPhoto> photos = photoService.lockPendingPhotos(member.getId(), request.photoIds());
+    List<CarWashPhoto> photos = photoService.lockPendingPhotos(member.getId(), modification.photoIds());
     OffsetDateTime submittedAt = OffsetDateTime.now(clock);
 
     CarWashHistory history;
     try {
-      CarWashInformation information = request.information().toDomain();
-      history = CarWashHistory.modify(carWash, baseHistory, member.getId(), request.visitExperience(), request.observedAt(), submittedAt, information,
+      history = CarWashHistory.modify(carWash, baseHistory, member.getId(), modification.visitExperience(), modification.observedAt(), submittedAt, modification.information(),
                                       photos.stream().map(CarWashPhoto::getId).toList());
     } catch (IllegalArgumentException exception) {
       throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
@@ -119,10 +121,11 @@ public class CarWashService {
    * 지도 범위의 세차장을 현재 위치 유무에 따른 순서로 조회하고 추가 결과 여부를 반환한다.
    */
   @Transactional(readOnly = true)
-  public CarWashExplorationDto.Response findWithinBounds(MapBounds bounds, Coordinates currentCoordinates) {
+  public CarWashExplorationDto.Response findWithinBounds(CarWashExploration exploration) {
+    Coordinates currentCoordinates = exploration.currentCoordinates();
     List<CarWashExplorationResult> rows = currentCoordinates == null
-                                         ? carWashRepository.findWithinBounds(bounds, Limit.of(EXPLORATION_LIMIT + 1))
-                                         : carWashRepository.findWithinBoundsByDistance(bounds, currentCoordinates, Limit.of(EXPLORATION_LIMIT + 1));
+                                         ? carWashRepository.findWithinBounds(exploration.bounds(), Limit.of(EXPLORATION_LIMIT + 1))
+                                         : carWashRepository.findWithinBoundsByDistance(exploration.bounds(), currentCoordinates, Limit.of(EXPLORATION_LIMIT + 1));
 
     List<CarWashExplorationResult> visibleRows = rows.subList(0, Math.min(rows.size(), EXPLORATION_LIMIT));
     List<CarWashExplorationDto.CarWashSummary> summaries = visibleRows.stream().map(CarWashExplorationDto.CarWashSummary::from).toList();

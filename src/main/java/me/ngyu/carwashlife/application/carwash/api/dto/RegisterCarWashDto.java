@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.time.OffsetDateTime;
 import java.util.List;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashRegistration;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 
 public class RegisterCarWashDto {
@@ -23,6 +24,12 @@ public class RegisterCarWashDto {
                         @NotNull @Valid CarWashInformationDto.Request information,
                         @Size(max = 5) List<@NotNull @Positive Long> photoIds) {
 
+    /**
+     * 등록 요청을 세차장 등록에 필요한 도메인 값으로 변환한다.
+     */
+    public CarWashRegistration toDomain() {
+      return new CarWashRegistration(visitExperience, observedAt, information.toDomain(), photoIds);
+    }
   }
 
   /**

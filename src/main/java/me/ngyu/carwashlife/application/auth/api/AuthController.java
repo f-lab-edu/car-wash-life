@@ -19,14 +19,20 @@ public class AuthController {
 
   private final AuthService authService;
 
+  /**
+   * 회원가입 요청을 도메인 값으로 변환해 전달한다.
+   */
   @PostMapping("/signup")
   @ResponseStatus(HttpStatus.CREATED)
   public SignupDto.Response signup(@Valid @RequestBody SignupDto.Request request) {
-    return authService.signup(request);
+    return authService.signup(request.toDomain());
   }
 
+  /**
+   * 로그인 요청을 도메인 값으로 변환해 전달한다.
+   */
   @PostMapping("/login")
   public LoginDto.Response login(@Valid @RequestBody LoginDto.Request request) {
-    return authService.login(request);
+    return authService.login(request.toDomain());
   }
 }

@@ -8,6 +8,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory.Fields;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashModification;
 import me.ngyu.carwashlife.application.carwash.domain.VisitExperience;
 
 public class ModifyCarWashDto {
@@ -28,6 +29,12 @@ public class ModifyCarWashDto {
                         @NotNull @Valid CarWashInformationDto.Request information,
                         @Size(max = 5) List<@NotNull @Positive Long> photoIds) {
 
+    /**
+     * 수정 요청을 기준 제보와 수정할 정보를 포함한 도메인 값으로 변환한다.
+     */
+    public CarWashModification toDomain() {
+      return new CarWashModification(baseHistoryId, visitExperience, observedAt, information.toDomain(), photoIds);
+    }
   }
 
   /**

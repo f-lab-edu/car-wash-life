@@ -29,7 +29,7 @@ public class CarWashController {
   @ResponseStatus(HttpStatus.CREATED)
   public RegisterCarWashDto.Response register(@AuthenticationPrincipal Long memberId,
                                               @Valid @RequestBody RegisterCarWashDto.Request request) {
-    return carWashService.register(memberId, request);
+    return carWashService.register(memberId, request.toDomain());
   }
 
   @PostMapping("/{carWashId}/histories")
@@ -37,12 +37,12 @@ public class CarWashController {
   public ModifyCarWashDto.Response modify(@PathVariable Long carWashId,
                                           @AuthenticationPrincipal Long memberId,
                                           @Valid @RequestBody ModifyCarWashDto.Request request) {
-    return carWashService.modify(memberId, carWashId, request);
+    return carWashService.modify(memberId, carWashId, request.toDomain());
   }
 
   @GetMapping
   public CarWashExplorationDto.Response findWithinBounds(@Valid @ModelAttribute CarWashExplorationDto.Request request) {
-    return carWashService.findWithinBounds(request.toDomain(), request.toCurrentCoordinates());
+    return carWashService.findWithinBounds(request.toDomain());
   }
 
   @GetMapping("/{carWashId}")

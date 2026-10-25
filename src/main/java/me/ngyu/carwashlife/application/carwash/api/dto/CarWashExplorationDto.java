@@ -3,6 +3,7 @@ package me.ngyu.carwashlife.application.carwash.api.dto;
 import jakarta.validation.constraints.NotNull;
 import java.time.OffsetDateTime;
 import java.util.List;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashExploration;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashExplorationResult;
 import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.carwash.domain.MapBounds;
@@ -21,23 +22,23 @@ public class CarWashExplorationDto {
                         Double currentLatitude,
                         Double currentLongitude) {
 
-    public Coordinates toCurrentCoordinates() {
-      if (currentLatitude == null && currentLongitude == null) {
-        return null;
-      }
+    /**
+     * 지도 범위와 선택한 현재 위치를 하나의 탐색 조건으로 변환한다.
+     */
+    public CarWashExploration toDomain() {
       try {
-        return new Coordinates(currentLatitude, currentLongitude);
+        MapBounds bounds = new MapBounds(new Coordinates(southwestLatitude, southwestLongitude), new Coordinates(northeastLatitude, northeastLongitude));
+        return new CarWashExploration(bounds, toCurrentCoordinates());
       } catch (IllegalArgumentException exception) {
         throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
       }
     }
 
-    public MapBounds toDomain() {
-      try {
-        return new MapBounds(new Coordinates(southwestLatitude, southwestLongitude), new Coordinates(northeastLatitude, northeastLongitude));
-      } catch (IllegalArgumentException exception) {
-        throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
-      }
+    /**
+     * 현재 위치를 생략하면 null을 반환하고 입력한 좌표는 함께 검증한다.
+     */
+    private Coordinates toCurrentCoordinates() {
+      return currentLatitude == null && currentLongitude == null ? null : new Coordinates(currentLatitude, currentLongitude);
     }
   }
 
