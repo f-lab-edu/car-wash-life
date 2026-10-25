@@ -7,12 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import java.time.Clock;
-import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.member.domain.Member;
@@ -28,18 +24,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(CarWashQueryApiIntegrationTest.TestClockConfig.class)
+@Import(TestClockConfig.class)
 class CarWashQueryApiIntegrationTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
@@ -279,55 +272,5 @@ class CarWashQueryApiIntegrationTest {
 
   private String modification() {
     return SNAPSHOT.replaceFirst("\\{", "{\"baseHistoryId\":" + originalHistoryId + ",").replace("2026-10-05", "2026-10-06");
-  }
-
-  @TestConfiguration
-  static class TestClockConfig {
-
-    @Bean
-    @Primary
-    AdjustableClock adjustableClock() {
-      return new AdjustableClock(new AtomicReference<>(NOW.toInstant()), ZoneId.of("Asia/Seoul"));
-    }
-  }
-
-  static class AdjustableClock extends Clock {
-
-    private final AtomicReference<Instant> instant;
-    private final ZoneId zone;
-
-    AdjustableClock(AtomicReference<Instant> instant, ZoneId zone) {
-      this.instant = instant;
-      this.zone = zone;
-    }
-
-    void setInstant(Instant instant) {
-      this.instant.set(instant);
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      return this == other;
-    }
-
-    @Override
-    public int hashCode() {
-      return System.identityHashCode(this);
-    }
-
-    @Override
-    public ZoneId getZone() {
-      return zone;
-    }
-
-    @Override
-    public Clock withZone(ZoneId zone) {
-      return new AdjustableClock(instant, zone);
-    }
-
-    @Override
-    public Instant instant() {
-      return instant.get();
-    }
   }
 }

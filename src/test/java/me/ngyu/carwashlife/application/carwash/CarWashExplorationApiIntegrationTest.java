@@ -41,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-@Import(CarWashQueryApiIntegrationTest.TestClockConfig.class)
+@Import(TestClockConfig.class)
 class CarWashExplorationApiIntegrationTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-10-07T12:00:00+09:00");
@@ -62,7 +62,7 @@ class CarWashExplorationApiIntegrationTest {
   private JdbcTemplate jdbcTemplate;
 
   @Autowired
-  private CarWashQueryApiIntegrationTest.AdjustableClock clock;
+  private AdjustableClock clock;
 
   private Long memberId;
 
