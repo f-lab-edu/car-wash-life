@@ -23,6 +23,22 @@ class AdjustableClock extends Clock {
   }
 
   /**
+   * 같은 시계 인스턴스인지 비교한다.
+   */
+  @Override
+  public boolean equals(Object other) {
+    return this == other;
+  }
+
+  /**
+   * 시계 인스턴스의 식별 해시를 반환한다.
+   */
+  @Override
+  public int hashCode() {
+    return System.identityHashCode(this);
+  }
+
+  /**
    * 시계에 설정된 시간대를 반환한다.
    */
   @Override

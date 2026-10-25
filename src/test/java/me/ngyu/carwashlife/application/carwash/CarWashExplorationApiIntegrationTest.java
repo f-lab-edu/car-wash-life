@@ -88,26 +88,25 @@ class CarWashExplorationApiIntegrationTest {
       register("범위 밖", null, coordinates[0], coordinates[1]);
     }
 
-    mockMvc.perform(bounds("37", "127", "38", "128"))
-           .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(9))
-           .andExpect(result -> {
-             List<Number> returnedIds = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[*].carWashId");
-             assertThat(returnedIds.stream().map(Number::longValue).toList()).containsExactlyElementsOf(expected);
-           })
-           .andExpect(jsonPath("$.carWashes[0].name").value("범위 안"))
-           .andExpect(jsonPath("$.carWashes[0].address").value("서울"))
-           .andExpect(jsonPath("$.carWashes[0].latitude").value(37.5))
-           .andExpect(jsonPath("$.carWashes[0].longitude").value(127.5))
-           .andExpect(jsonPath("$.carWashes[0].reportCount").value(1))
-           .andExpect(result -> {
-             String latestSubmittedAt = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[0].latestSubmittedAt");
-             String createdAt = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[0].createdAt");
-             assertThat(OffsetDateTime.parse(latestSubmittedAt).toInstant()).isEqualTo(NOW.toInstant());
-             assertThat(OffsetDateTime.parse(createdAt).toInstant()).isEqualTo(NOW.toInstant());
-           })
-           .andExpect(jsonPath("$.carWashes[0].distanceMeters").value(org.hamcrest.Matchers.nullValue()))
-           .andExpect(jsonPath("$.carWashes[0].memberId").doesNotExist())
-           .andExpect(jsonPath("$.hasMore").value(false));
+    String response = mockMvc.perform(bounds("37", "127", "38", "128"))
+                             .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(9))
+                             .andExpect(jsonPath("$.carWashes[0].name").value("범위 안"))
+                             .andExpect(jsonPath("$.carWashes[0].address").value("서울"))
+                             .andExpect(jsonPath("$.carWashes[0].latitude").value(37.5))
+                             .andExpect(jsonPath("$.carWashes[0].longitude").value(127.5))
+                             .andExpect(jsonPath("$.carWashes[0].reportCount").value(1))
+                             .andExpect(result -> {
+                               String latestSubmittedAt = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[0].latestSubmittedAt");
+                               String createdAt = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[0].createdAt");
+                               assertThat(OffsetDateTime.parse(latestSubmittedAt).toInstant()).isEqualTo(NOW.toInstant());
+                               assertThat(OffsetDateTime.parse(createdAt).toInstant()).isEqualTo(NOW.toInstant());
+                             })
+                             .andExpect(jsonPath("$.carWashes[0].distanceMeters").value(org.hamcrest.Matchers.nullValue()))
+                             .andExpect(jsonPath("$.carWashes[0].memberId").doesNotExist())
+                             .andExpect(jsonPath("$.hasMore").value(false)).andReturn().getResponse().getContentAsString();
+
+    List<Number> returnedIds = JsonPath.read(response, "$.carWashes[*].carWashId");
+    assertThat(returnedIds.stream().map(Number::longValue).toList()).containsExactlyElementsOf(expected);
   }
 
   @Test
@@ -171,13 +170,12 @@ class CarWashExplorationApiIntegrationTest {
       ids.add(register("세차장 " + i, null, 37.5, 127.5).carWashId());
     }
 
-    mockMvc.perform(bounds("37", "127", "38", "128"))
-           .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(100))
-           .andExpect(result -> {
-             List<Number> returnedIds = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[*].carWashId");
-             assertThat(returnedIds.stream().map(Number::longValue).toList()).containsExactlyElementsOf(ids.subList(0, 100));
-           })
-           .andExpect(jsonPath("$.hasMore").value(count > 100));
+    String response = mockMvc.perform(bounds("37", "127", "38", "128"))
+                             .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(100))
+                             .andExpect(jsonPath("$.hasMore").value(count > 100)).andReturn().getResponse().getContentAsString();
+
+    List<Number> returnedIds = JsonPath.read(response, "$.carWashes[*].carWashId");
+    assertThat(returnedIds.stream().map(Number::longValue).toList()).containsExactlyElementsOf(ids.subList(0, 100));
   }
 
   @Test
@@ -275,17 +273,16 @@ class CarWashExplorationApiIntegrationTest {
     }
     Long nearestId = register("마지막 ID 최근접", null, 37.5, 127.5).carWashId();
 
-    mockMvc.perform(bounds("37", "127", "38", "128").queryParam("currentLatitude", "37.5").queryParam("currentLongitude", "127.5"))
-           .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(100))
-           .andExpect(jsonPath("$.carWashes[0].carWashId").value(nearestId))
-           .andExpect(jsonPath("$.hasMore").value(count > 100))
-           .andExpect(result -> {
-             List<Number> ids = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[*].carWashId");
-             List<Long> expected = new ArrayList<>();
-             expected.add(nearestId);
-             expected.addAll(farIds.subList(0, 99));
-             assertThat(ids.stream().map(Number::longValue).toList()).containsExactlyElementsOf(expected);
-           });
+    String response = mockMvc.perform(bounds("37", "127", "38", "128").queryParam("currentLatitude", "37.5").queryParam("currentLongitude", "127.5"))
+                             .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes.length()").value(100))
+                             .andExpect(jsonPath("$.carWashes[0].carWashId").value(nearestId))
+                             .andExpect(jsonPath("$.hasMore").value(count > 100)).andReturn().getResponse().getContentAsString();
+
+    List<Number> ids = JsonPath.read(response, "$.carWashes[*].carWashId");
+    List<Long> expected = new ArrayList<>();
+    expected.add(nearestId);
+    expected.addAll(farIds.subList(0, 99));
+    assertThat(ids.stream().map(Number::longValue).toList()).containsExactlyElementsOf(expected);
   }
 
   @Test

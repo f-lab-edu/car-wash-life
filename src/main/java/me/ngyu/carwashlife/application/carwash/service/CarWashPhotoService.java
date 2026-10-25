@@ -3,9 +3,11 @@ package me.ngyu.carwashlife.application.carwash.service;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -144,6 +146,22 @@ public class CarWashPhotoService {
     @Override
     public byte[] content() {
       return content.clone();
+    }
+
+    /**
+     * 사진 내용과 파일 형식으로 동등성을 비교한다.
+     */
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof PhotoContent photo && Arrays.equals(content, photo.content) && Objects.equals(contentType, photo.contentType);
+    }
+
+    /**
+     * 사진 내용과 파일 형식으로 해시를 계산한다.
+     */
+    @Override
+    public int hashCode() {
+      return 31 * Arrays.hashCode(content) + Objects.hashCode(contentType);
     }
 
     @Override
