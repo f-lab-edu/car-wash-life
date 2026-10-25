@@ -24,15 +24,20 @@ public interface CarWashRepository extends JpaRepository<CarWash, Long> {
           )))))
           """;
 
-  @Query("""
-          select carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude,
-                 count(history), max(history.submittedAt), carWash.createdAt, cast(null as Double)
+  // 현재 위치 유무와 관계없이 같은 조회 조건과 제보 집계 기준을 사용한다.
+  String EXPLORATION_FROM_WHERE_GROUP_BY = """
           from CarWashHistory history
           join history.carWash carWash
           join carWash.targetHistory representative
           where carWash.coordinates.latitude between :#{#bounds.southwest().getLatitude()} and :#{#bounds.northeast().getLatitude()}
             and carWash.coordinates.longitude between :#{#bounds.southwest().getLongitude()} and :#{#bounds.northeast().getLongitude()}
           group by carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude, carWash.createdAt
+          """;
+
+  @Query("""
+          select carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude,
+                 count(history), max(history.submittedAt), carWash.createdAt, cast(null as Double)
+          """ + EXPLORATION_FROM_WHERE_GROUP_BY + """
           order by carWash.id asc
           """)
   List<CarWashExplorationResult> findWithinBounds(@Param("bounds") MapBounds bounds, Limit limit);
@@ -40,13 +45,7 @@ public interface CarWashRepository extends JpaRepository<CarWash, Long> {
   @Query("""
           select carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude,
                  count(history), max(history.submittedAt), carWash.createdAt,
-          """ + DISTANCE_METERS + """
-          from CarWashHistory history
-          join history.carWash carWash
-          join carWash.targetHistory representative
-          where carWash.coordinates.latitude between :#{#bounds.southwest().getLatitude()} and :#{#bounds.northeast().getLatitude()}
-            and carWash.coordinates.longitude between :#{#bounds.southwest().getLongitude()} and :#{#bounds.northeast().getLongitude()}
-          group by carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude, carWash.createdAt
+          """ + DISTANCE_METERS + EXPLORATION_FROM_WHERE_GROUP_BY + """
           order by
           """ + DISTANCE_METERS + " asc, carWash.id asc")
   List<CarWashExplorationResult> findWithinBoundsByDistance(@Param("bounds") MapBounds bounds, @Param("current") Coordinates current, Limit limit);
