@@ -1,5 +1,7 @@
 package me.ngyu.carwashlife.application.carwash.api.dto;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -15,12 +17,12 @@ public class CarWashExplorationDto {
   private CarWashExplorationDto() {
   }
 
-  public record Request(@NotNull Double southwestLatitude,
-                        @NotNull Double southwestLongitude,
-                        @NotNull Double northeastLatitude,
-                        @NotNull Double northeastLongitude,
-                        Double currentLatitude,
-                        Double currentLongitude) {
+  public record Request(@NotNull @DecimalMin("-90") @DecimalMax("90") Double southwestLatitude,
+                        @NotNull @DecimalMin("-180") @DecimalMax("180") Double southwestLongitude,
+                        @NotNull @DecimalMin("-90") @DecimalMax("90") Double northeastLatitude,
+                        @NotNull @DecimalMin("-180") @DecimalMax("180") Double northeastLongitude,
+                        @DecimalMin("-90") @DecimalMax("90") Double currentLatitude,
+                        @DecimalMin("-180") @DecimalMax("180") Double currentLongitude) {
 
     /**
      * 지도 범위와 선택한 현재 위치를 하나의 탐색 조건으로 변환한다.

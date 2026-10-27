@@ -37,6 +37,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -212,13 +213,29 @@ class CarWashExplorationApiIntegrationTest {
   }
 
   @ParameterizedTest(name = "[{index}] {displayName}")
-  @DisplayName("문자·유한하지 않은 값·범위 초과·역전된 지도 좌표는 검증 오류를 반환한다.")
+  @DisplayName("문자·유한하지 않은 값·범위 초과인 지도 좌표는 요청 검증 오류를 반환한다.")
   @CsvSource({"text,127,38,128", "NaN,127,38,128", "37,Infinity,38,128", "37,127,-Infinity,128",
-          "-91,127,38,128", "37,-181,38,128", "37,127,91,128", "37,127,38,181",
-          "39,127,38,128", "37,129,38,128", "-10,170,10,-170"})
+          "-91,127,38,128", "37,-181,38,128", "37,127,91,128", "37,127,38,181"})
   void invalidCoordinatesReturnBadRequest(String south, String west, String north, String east) throws Exception {
     mockMvc.perform(bounds(south, west, north, east))
+           .andExpect(result -> assertThat(result.getResolvedException()).isInstanceOf(MethodArgumentNotValidException.class))
            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("지도 좌표 범위가 역전되면 도메인 검증을 통해 입력 오류를 반환한다.")
+  @CsvSource({"39,127,38,128", "37,129,38,128", "-10,170,10,-170"})
+  void reversedBoundsReturnBadRequest(String south, String west, String north, String east) throws Exception {
+    mockMvc.perform(bounds(south, west, north, east))
+           .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("지도 경계와 현재 위치의 위도·경도 최솟값과 최댓값은 허용한다.")
+  @CsvSource({"-90,-180", "90,180"})
+  void acceptsCoordinateRangeEndpoints(String latitude, String longitude) throws Exception {
+    mockMvc.perform(bounds(latitude, longitude, latitude, longitude).queryParam("currentLatitude", latitude).queryParam("currentLongitude", longitude))
+           .andExpect(status().isOk()).andExpect(jsonPath("$.carWashes").isEmpty());
   }
 
   @Test
@@ -293,16 +310,20 @@ class CarWashExplorationApiIntegrationTest {
   }
 
   @ParameterizedTest(name = "[{index}] {displayName}")
-  @DisplayName("현재 위치의 일부 누락과 문자·유한하지 않은 값·범위 초과는 검증 오류를 반환한다.")
-  @CsvSource({",127", "37,", "text,127", "37,text", "NaN,127", "37,NaN", "Infinity,127", "37,-Infinity", "-91,127", "91,127", "37,-181", "37,181"})
+  @DisplayName("현재 위치의 문자·유한하지 않은 값·범위 초과는 요청 검증 오류를 반환한다.")
+  @CsvSource({"text,127", "37,text", "NaN,127", "37,NaN", "Infinity,127", "37,-Infinity", "-91,127", "91,127", "37,-181", "37,181"})
   void invalidCurrentCoordinatesReturnBadRequest(String latitude, String longitude) throws Exception {
-    MockHttpServletRequestBuilder request = bounds("37", "127", "38", "128");
-    if (latitude != null) {
-      request.queryParam("currentLatitude", latitude);
-    }
-    if (longitude != null) {
-      request.queryParam("currentLongitude", longitude);
-    }
+    MockHttpServletRequestBuilder request = bounds("37", "127", "38", "128").queryParam("currentLatitude", latitude).queryParam("currentLongitude", longitude);
+    mockMvc.perform(request)
+           .andExpect(result -> assertThat(result.getResolvedException()).isInstanceOf(MethodArgumentNotValidException.class))
+           .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @DisplayName("현재 위치의 위도와 경도 중 하나만 입력하면 검증 오류를 반환한다.")
+  @ValueSource(strings = {"currentLatitude", "currentLongitude"})
+  void incompleteCurrentCoordinatesReturnBadRequest(String parameter) throws Exception {
+    MockHttpServletRequestBuilder request = bounds("37", "127", "38", "128").queryParam(parameter, "37");
     mockMvc.perform(request).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
   }
 
