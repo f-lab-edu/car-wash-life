@@ -6,6 +6,8 @@ import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.auth.api.dto.LoginDto;
 import me.ngyu.carwashlife.application.auth.api.dto.SignupDto;
+import me.ngyu.carwashlife.application.auth.domain.LoginCredentials;
+import me.ngyu.carwashlife.application.auth.domain.SignupInformation;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -26,19 +28,22 @@ public class AuthService {
   private final PasswordEncoder passwordEncoder;
   private final AccessTokenProvider accessTokenProvider;
 
+  /**
+   * 중복 이메일을 확인하고 비밀번호를 암호화한 회원을 등록한다.
+   */
   @Transactional
-  public SignupDto.Response signup(SignupDto.Request request) {
-    String email = normalizeEmail(request.email());
+  public SignupDto.Response signup(SignupInformation information) {
+    String email = normalizeEmail(information.email());
     if (memberRepository.existsByEmail(email)) {
       throw new ApplicationException(ErrorCode.DUPLICATE_EMAIL);
     }
 
     Member member = Member.create(
             email,
-            passwordEncoder.encode(request.password()),
-            request.residenceRegionCode(),
-            request.vehicleType(),
-            request.washExperience(),
+            passwordEncoder.encode(information.password()),
+            information.residenceRegionCode(),
+            information.vehicleType(),
+            information.washExperience(),
             OffsetDateTime.now(SERVICE_ZONE_ID)
     );
 
@@ -54,12 +59,15 @@ public class AuthService {
     }
   }
 
+  /**
+   * 로그인 정보와 회원 상태를 확인하고 액세스 토큰을 발급한다.
+   */
   @Transactional(readOnly = true)
-  public LoginDto.Response login(LoginDto.Request request) {
-    Member member = memberRepository.findByEmail(normalizeEmail(request.email()))
+  public LoginDto.Response login(LoginCredentials credentials) {
+    Member member = memberRepository.findByEmail(normalizeEmail(credentials.email()))
                                     .orElseThrow(() -> new ApplicationException(ErrorCode.INVALID_CREDENTIALS));
 
-    if (!passwordEncoder.matches(request.password(), member.getPassword())) {
+    if (!passwordEncoder.matches(credentials.password(), member.getPassword())) {
       throw new ApplicationException(ErrorCode.INVALID_CREDENTIALS);
     }
     if (!member.isActive()) {

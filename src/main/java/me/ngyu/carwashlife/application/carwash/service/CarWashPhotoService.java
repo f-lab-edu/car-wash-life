@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashPhotoDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashPhotoUpload;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
 import me.ngyu.carwashlife.common.exception.ErrorCode;
@@ -23,7 +24,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -35,10 +35,13 @@ public class CarWashPhotoService {
   private final CarWashPhotoValidator validator;
   private final Clock clock;
 
+  /**
+   * 업로드 내용을 검증하고 파일과 사진 정보를 저장한다.
+   */
   @Transactional
-  public CarWashPhotoDto.Response upload(Long memberId, MultipartFile file) {
+  public CarWashPhotoDto.Response upload(Long memberId, CarWashPhotoUpload upload) {
     requireActiveMember(memberId);
-    CarWashPhotoValidator.ValidatedPhoto photo = validator.validate(file);
+    CarWashPhotoValidator.ValidatedPhoto photo = validator.validate(upload);
     byte[] content = photo.content();
     String key;
     try {
@@ -67,11 +70,13 @@ public class CarWashPhotoService {
 
   @Transactional(readOnly = true)
   public PhotoContent read(Long memberId, Long photoId) {
-    requireActiveMember(memberId);
     CarWashPhoto photo = photoRepository.findById(photoId)
                                         .orElseThrow(() -> new ApplicationException(ErrorCode.CAR_WASH_PHOTO_NOT_FOUND));
     if (!photo.canReadBy(memberId)) {
       throw new ApplicationException(ErrorCode.CAR_WASH_PHOTO_NOT_FOUND);
+    }
+    if (photo.isPending()) {
+      requireActiveMember(memberId);
     }
     try {
       byte[] content = storage.read(photo.getStorageKey());
@@ -143,11 +148,17 @@ public class CarWashPhotoService {
       return content.clone();
     }
 
+    /**
+     * 사진 내용과 파일 형식으로 동등성을 비교한다.
+     */
     @Override
     public boolean equals(Object other) {
       return other instanceof PhotoContent photo && Arrays.equals(content, photo.content) && Objects.equals(contentType, photo.contentType);
     }
 
+    /**
+     * 사진 내용과 파일 형식으로 해시를 계산한다.
+     */
     @Override
     public int hashCode() {
       return 31 * Arrays.hashCode(content) + Objects.hashCode(contentType);

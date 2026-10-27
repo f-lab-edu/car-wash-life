@@ -31,16 +31,16 @@ class CarWashPhotoTest {
   }
 
   @Test
-  @DisplayName("첨부한 사진은 다른 회원도 조회할 수 있지만 누구도 다시 첨부할 수 없다.")
-  void anAttachedPhotoIsReadableByOtherMembersButCannotBeAttachedAgain() {
+  @DisplayName("첨부한 사진은 비회원도 조회할 수 있지만 누구도 다시 첨부할 수 없다.")
+  void anAttachedPhotoIsPublicButCannotBeAttachedAgain() {
     CarWashPhoto photo = CarWashPhoto.create(1L, UUID.randomUUID().toString(), "image/png", 100, NOW);
     ReflectionTestUtils.setField(photo, "id", 10L);
     photo.attachTo(registration(1L, List.of(10L)));
 
     assertThat(photo.canReadBy(1L)).isTrue();
     assertThat(photo.canReadBy(2L)).isTrue();
-    assertThat(photo.canReadBy(null)).isFalse();
-    assertThat(photo.canReadBy(0L)).isFalse();
+    assertThat(photo.canReadBy(null)).isTrue();
+    assertThat(photo.canReadBy(0L)).isTrue();
     assertThat(photo.canAttachBy(1L)).isFalse();
     assertThat(photo.canAttachBy(2L)).isFalse();
   }

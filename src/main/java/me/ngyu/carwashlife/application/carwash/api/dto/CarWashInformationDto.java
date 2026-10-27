@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Size;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
 import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.carwash.domain.FacilityAvailability;
+import me.ngyu.carwashlife.common.exception.ApplicationException;
+import me.ngyu.carwashlife.common.exception.ErrorCode;
 
 public class CarWashInformationDto {
 
@@ -29,10 +31,17 @@ public class CarWashInformationDto {
                         @PositiveOrZero Integer washBayCount,
                         @PositiveOrZero Integer dryingBayCount) {
 
+    /**
+     * 요청 정보를 도메인 값으로 변환하고 잘못된 입력을 검증 오류로 분류한다.
+     */
     public CarWashInformation toDomain() {
-      return new CarWashInformation(name, address, new Coordinates(latitude, longitude), highPressureWaterPrice,
-                                    foamLanceAvailability, foamGunPrice, airGunAvailability, airGunPrice,
-                                    vacuumAvailability, vacuumPrice, washBayCount, dryingBayCount);
+      try {
+        return new CarWashInformation(name, address, new Coordinates(latitude, longitude), highPressureWaterPrice,
+                                      foamLanceAvailability, foamGunPrice, airGunAvailability, airGunPrice,
+                                      vacuumAvailability, vacuumPrice, washBayCount, dryingBayCount);
+      } catch (IllegalArgumentException exception) {
+        throw new ApplicationException(ErrorCode.VALIDATION_ERROR, exception);
+      }
     }
   }
 }

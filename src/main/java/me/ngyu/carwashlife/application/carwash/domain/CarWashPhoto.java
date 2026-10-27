@@ -71,7 +71,7 @@ public class CarWashPhoto {
   }
 
   public boolean canReadBy(Long memberId) {
-    return memberId != null && memberId > 0 && (!isPending() || ownerId.equals(memberId));
+    return !isPending() || (memberId != null && memberId > 0 && ownerId.equals(memberId));
   }
 
   public boolean canAttachBy(Long memberId) {
