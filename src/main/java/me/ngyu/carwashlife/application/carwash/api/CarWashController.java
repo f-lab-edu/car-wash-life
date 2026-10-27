@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashDetailDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashExplorationDto;
+import me.ngyu.carwashlife.application.carwash.api.dto.CarWashSearchDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.service.CarWashService;
@@ -43,6 +44,11 @@ public class CarWashController {
   @GetMapping
   public CarWashExplorationDto.Response findWithinBounds(@Valid @ModelAttribute CarWashExplorationDto.Request request) {
     return carWashService.findWithinBounds(request.toDomain());
+  }
+
+  @GetMapping("/search")
+  public CarWashSearchDto.Response search(@Valid @ModelAttribute CarWashSearchDto.Request request) {
+    return carWashService.search(request.toDomain());
   }
 
   @GetMapping("/{carWashId}")

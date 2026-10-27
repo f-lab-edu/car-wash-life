@@ -6,6 +6,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashDetailDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.CarWashExplorationDto;
+import me.ngyu.carwashlife.application.carwash.api.dto.CarWashSearchDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.ModifyCarWashDto;
 import me.ngyu.carwashlife.application.carwash.api.dto.RegisterCarWashDto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
@@ -16,6 +17,7 @@ import me.ngyu.carwashlife.application.carwash.domain.CarWashInformation;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashModification;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashPhoto;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashRegistration;
+import me.ngyu.carwashlife.application.carwash.domain.CarWashSearch;
 import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.member.domain.Member;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
@@ -33,6 +35,9 @@ public class CarWashService {
 
   // 지도 응답 크기를 제한한다. 추가 결과 여부는 한 건 더 조회해 판단한다.
   private static final int EXPLORATION_LIMIT = 100;
+
+  // 검색 응답 크기를 제한한다. 추가 결과 여부는 한 건 더 조회해 판단한다.
+  private static final int SEARCH_LIMIT = 100;
 
   private final CarWashRepository carWashRepository;
   private final CarWashHistoryRepository historyRepository;
@@ -131,6 +136,17 @@ public class CarWashService {
     List<CarWashExplorationDto.CarWashSummary> summaries = visibleRows.stream().map(CarWashExplorationDto.CarWashSummary::from).toList();
 
     return new CarWashExplorationDto.Response(summaries, rows.size() > EXPLORATION_LIMIT);
+  }
+
+  /**
+   * 현재 대표 이름에 검색어가 포함된 세차장을 ID 순서로 조회한다.
+   */
+  @Transactional(readOnly = true)
+  public CarWashSearchDto.Response search(CarWashSearch search) {
+    List<CarWashExplorationResult> rows = carWashRepository.findByNameContaining(search.keyword(), Limit.of(SEARCH_LIMIT + 1));
+    List<CarWashExplorationResult> visibleRows = rows.subList(0, Math.min(rows.size(), SEARCH_LIMIT));
+    List<CarWashExplorationDto.CarWashSummary> summaries = visibleRows.stream().map(CarWashExplorationDto.CarWashSummary::from).toList();
+    return new CarWashSearchDto.Response(summaries, rows.size() > SEARCH_LIMIT);
   }
 
   /**

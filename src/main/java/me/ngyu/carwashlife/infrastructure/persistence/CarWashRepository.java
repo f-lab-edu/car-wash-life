@@ -50,6 +50,18 @@ public interface CarWashRepository extends JpaRepository<CarWash, Long> {
           """ + DISTANCE_METERS + " asc, carWash.id asc")
   List<CarWashExplorationResult> findWithinBoundsByDistance(@Param("bounds") MapBounds bounds, @Param("current") Coordinates current, Limit limit);
 
+  @Query("""
+          select carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude,
+                 count(history), max(history.submittedAt), carWash.createdAt, cast(null as Double)
+          from CarWashHistory history
+          join history.carWash carWash
+          join carWash.targetHistory representative
+          where locate(:keyword, carWash.name) > 0
+          group by carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude, carWash.createdAt
+          order by carWash.id asc
+          """)
+  List<CarWashExplorationResult> findByNameContaining(@Param("keyword") String keyword, Limit limit);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select carWash from CarWash carWash where carWash.id = :id")
   Optional<CarWash> findByIdForUpdate(@Param("id") Long id);

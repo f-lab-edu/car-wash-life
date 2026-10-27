@@ -1,8 +1,19 @@
 # 세차장 탐색·제보·상세 조회
 
-적용 API는 탐색 `GET /car-washes`, 등록 `POST /car-washes`, 수정 `POST /car-washes/{carWashId}/histories`, 상세 조회 `GET /car-washes/{carWashId}`다.
+적용 API는 탐색 `GET /car-washes`, 이름 검색 `GET /car-washes/search`, 등록 `POST /car-washes`, 수정 `POST /car-washes/{carWashId}/histories`, 상세 조회 `GET /car-washes/{carWashId}`다.
 
-탐색과 상세 정보는 로그인 여부와 회원 상태에 관계없이 조회할 수 있다. 등록과 수정에는 활성 회원의 AccessToken이 필요하다.
+탐색과 이름 검색, 상세 정보는 로그인 여부와 회원 상태에 관계없이 조회할 수 있다. 등록과 수정에는 활성 회원의 AccessToken이 필요하다.
+
+## 세차장명 검색
+
+`GET /car-washes/search?keyword=세차생활`로 현재 대표 이름에 검색어가 포함된 세차장을 검색한다.
+`keyword`의 앞뒤 공백은 제거하고 내부 공백은 보존한다. 정리한 검색어는 1~100자여야 하며, 누락하거나 공백뿐이거나 100자를 초과하면 `400 VALIDATION_ERROR`를 반환한다.
+부분 검색은 대소문자를 구분하며 `%`, `_`, 작은따옴표 등도 이름에 포함된 일반 문자로 처리한다. 주소와 비대표 이력의 이름은 검색하지 않는다.
+
+응답은 지도 탐색과 같은 `carWashes`, `hasMore` 구조다. ID 오름차순으로 최대 100개를 반환하고, 101번째 결과가 있으면 `hasMore`가 `true`다.
+각 항목에는 대표 이름, 주소, 좌표와 전체 제보 건수, 최근 제출 시각, 최초 등록 시각을 제공한다. 결과가 없으면 `carWashes`는 빈 목록이고 `hasMore`는 `false`다.
+
+이번 변경은 이름 검색의 첫 구현이다. 현재 위치에 따른 거리 표시와 정렬, 페이지 조회, 지역 검색은 아직 제공하지 않는다. `distanceMeters`는 `null`이며, 추가 결과를 찾으려면 더 구체적인 이름으로 검색한다.
 
 ## 지도 범위 탐색
 
