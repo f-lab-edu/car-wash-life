@@ -1,12 +1,15 @@
 package me.ngyu.carwashlife.application.carwash;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import me.ngyu.carwashlife.application.carwash.domain.CarWash;
 import me.ngyu.carwashlife.application.carwash.domain.CarWashHistory;
@@ -190,8 +193,128 @@ class CarWashSearchApiIntegrationTest {
            .andExpect(jsonPath("$.hasMore").value(hasMore));
   }
 
+  @Test
+  @DisplayName("현재 위치가 있으면 이름이 일치하는 세차장을 거리순과 같은 거리의 ID순으로 반환한다.")
+  void sortsMatchingNamesByDistanceAndIdAndReturnsActivity() throws Exception {
+    CarWash farther = save("세차생활 먼 지점", new Coordinates(0.0, 2.0));
+    CarWash firstTie = save("세차생활 동쪽", new Coordinates(0.0, 1.0));
+    CarWash secondTie = save("세차생활 서쪽", new Coordinates(0.0, -1.0));
+    CarWash coincident = save("세차생활 현재 위치", new Coordinates(0.0, 0.0));
+    save("다른 이름", new Coordinates(0.0, 0.0));
+    CarWashInformation information = CarWashInformation.builder().name("과거 제보").coordinates(new Coordinates(0.0, 0.0)).build();
+    historyRepository.save(CarWashHistory.modify(firstTie, firstTie.getTargetHistory(), 2L, VisitExperience.NOT_USED, NOW.minusDays(2), NOW.plusHours(1), information));
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("currentLatitude", "0").param("currentLongitude", "0"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes.length()").value(4))
+           .andExpect(result -> {
+             String body = result.getResponse().getContentAsString();
+             List<Number> ids = JsonPath.read(body, "$.carWashes[*].carWashId");
+             assertThat(ids.stream().map(Number::longValue).toList()).containsExactly(coincident.getId(), firstTie.getId(), secondTie.getId(), farther.getId());
+             Number zero = JsonPath.read(body, "$.carWashes[0].distanceMeters");
+             Number oneDegree = JsonPath.read(body, "$.carWashes[1].distanceMeters");
+             assertThat(zero.doubleValue()).isZero();
+             assertThat(oneDegree.doubleValue()).isCloseTo(111195.0802, within(0.01));
+             String latestSubmittedAt = JsonPath.read(body, "$.carWashes[1].latestSubmittedAt");
+             assertThat(OffsetDateTime.parse(latestSubmittedAt).toInstant()).isEqualTo(NOW.plusHours(1).toInstant());
+           })
+           .andExpect(jsonPath("$.carWashes[1].reportCount").value(2))
+           .andExpect(jsonPath("$.carWashes[1].longitude").value(1.0))
+           .andExpect(jsonPath("$.hasMore").value(false));
+  }
+
+  @Test
+  @DisplayName("대표가 변경되면 현재 대표 좌표로 거리를 계산하고 정렬한다.")
+  void updatedRepresentativeCoordinatesDetermineDistance() throws Exception {
+    CarWash moved = save("세차생활 이동 지점", new Coordinates(0.0, 0.0));
+    CarWash nearby = save("세차생활 가까운 지점", new Coordinates(0.0, 1.0));
+    CarWashInformation information = CarWashInformation.builder().name("세차생활 새 위치").coordinates(new Coordinates(0.0, 2.0)).build();
+    CarWashHistory history = historyRepository.save(CarWashHistory.modify(moved, moved.getTargetHistory(), 2L, VisitExperience.USED, NOW, NOW.plusHours(1), information));
+    moved.selectRepresentativeHistory(history, NOW.plusHours(1));
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("currentLatitude", "0").param("currentLongitude", "0"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes[0].carWashId").value(nearby.getId()))
+           .andExpect(jsonPath("$.carWashes[1].carWashId").value(moved.getId()))
+           .andExpect(jsonPath("$.carWashes[1].name").value("세차생활 새 위치"))
+           .andExpect(jsonPath("$.carWashes[1].longitude").value(2.0))
+           .andExpect(result -> {
+             Number distance = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[1].distanceMeters");
+             assertThat(distance.doubleValue()).isCloseTo(222390.1605, within(0.01));
+           });
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @ValueSource(ints = {100, 101})
+  @DisplayName("거리 정렬 후 100개로 제한하므로 마지막 ID인 최근접 세차장도 포함한다.")
+  void distanceOrderPrecedesResultLimit(int count) throws Exception {
+    List<Long> fartherIds = new ArrayList<>();
+    for (int index = 0; index < count - 1; index++) {
+      fartherIds.add(save("세차생활 먼 지점 " + index, new Coordinates(0.0, 2.0)).getId());
+    }
+    Long nearestId = save("세차생활 가까운 지점", new Coordinates(0.0, 0.0)).getId();
+    List<Long> expectedIds = new ArrayList<>();
+    expectedIds.add(nearestId);
+    expectedIds.addAll(fartherIds.subList(0, 99));
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("currentLatitude", "0").param("currentLongitude", "0"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes.length()").value(100))
+           .andExpect(jsonPath("$.hasMore").value(count > 100))
+           .andExpect(result -> {
+             List<Number> ids = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[*].carWashId");
+             assertThat(ids.stream().map(Number::longValue).toList()).containsExactlyElementsOf(expectedIds);
+           });
+  }
+
+  @Test
+  @DisplayName("현재 위치가 있어도 이름이 일치하는 세차장이 없으면 빈 결과를 반환한다.")
+  void emptyDistanceSearchReturnsNoMoreResults() throws Exception {
+    save("다른 이름", new Coordinates(0.0, 0.0));
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("currentLatitude", "0").param("currentLongitude", "0"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes").isEmpty())
+           .andExpect(jsonPath("$.hasMore").value(false));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @CsvSource({"text,127", "37,text", "NaN,127", "37,NaN", "Infinity,127", "-Infinity,127", "37,Infinity", "37,-Infinity",
+          "-91,127", "91,127", "37,-181", "37,181"})
+  @DisplayName("현재 위치의 문자·유한하지 않은 값·범위 초과는 요청 검증 오류를 반환한다.")
+  void invalidCurrentCoordinatesAreRejectedBeforeDomainConversion(String latitude, String longitude) throws Exception {
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("currentLatitude", latitude).param("currentLongitude", longitude))
+           .andExpect(result -> assertThat(result.getResolvedException()).isInstanceOf(MethodArgumentNotValidException.class))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @ValueSource(strings = {"currentLatitude", "currentLongitude"})
+  @DisplayName("현재 위치의 위도와 경도 중 하나만 입력하면 검증 오류를 반환한다.")
+  void incompleteCurrentCoordinatesAreRejected(String parameter) throws Exception {
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param(parameter, "37"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @CsvSource({"-90,-180", "-90,180", "90,-180", "90,180"})
+  @DisplayName("현재 위치의 위도·경도 최솟값과 최댓값은 허용한다.")
+  void acceptsCurrentCoordinateRangeEndpoints(double latitude, double longitude) throws Exception {
+    CarWash matching = save("세차생활", new Coordinates(latitude, longitude));
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("currentLatitude", Double.toString(latitude)).param("currentLongitude", Double.toString(longitude)))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes[0].carWashId").value(matching.getId()))
+           .andExpect(jsonPath("$.carWashes[0].distanceMeters").value(0.0));
+  }
+
   private CarWash save(String name) {
-    Coordinates coordinates = new Coordinates(37.5, 127.0);
+    return save(name, new Coordinates(37.5, 127.0));
+  }
+
+  private CarWash save(String name, Coordinates coordinates) {
     CarWash carWash = carWashRepository.save(CarWash.create(name, coordinates, NOW));
     CarWashInformation information = CarWashInformation.builder().name(name).address("서울시").coordinates(coordinates).build();
     CarWashHistory history = historyRepository.save(CarWashHistory.register(carWash, 1L, VisitExperience.USED, NOW, NOW, information));

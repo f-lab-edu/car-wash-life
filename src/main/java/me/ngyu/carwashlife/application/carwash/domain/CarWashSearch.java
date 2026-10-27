@@ -1,6 +1,6 @@
 package me.ngyu.carwashlife.application.carwash.domain;
 
-public record CarWashSearch(String keyword) {
+public record CarWashSearch(String keyword, Coordinates currentCoordinates) {
 
   public CarWashSearch {
     if (keyword == null) {

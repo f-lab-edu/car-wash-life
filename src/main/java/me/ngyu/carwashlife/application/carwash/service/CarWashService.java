@@ -139,11 +139,14 @@ public class CarWashService {
   }
 
   /**
-   * 현재 대표 이름에 검색어가 포함된 세차장을 ID 순서로 조회한다.
+   * 현재 대표 이름에 검색어가 포함된 세차장을 현재 위치 유무에 따른 순서로 조회한다.
    */
   @Transactional(readOnly = true)
   public CarWashSearchDto.Response search(CarWashSearch search) {
-    List<CarWashExplorationResult> rows = carWashRepository.findByNameContaining(search.keyword(), Limit.of(SEARCH_LIMIT + 1));
+    Coordinates currentCoordinates = search.currentCoordinates();
+    List<CarWashExplorationResult> rows = currentCoordinates == null
+                                         ? carWashRepository.findByNameContaining(search.keyword(), Limit.of(SEARCH_LIMIT + 1))
+                                         : carWashRepository.findByNameContainingByDistance(search.keyword(), currentCoordinates, Limit.of(SEARCH_LIMIT + 1));
     List<CarWashExplorationResult> visibleRows = rows.subList(0, Math.min(rows.size(), SEARCH_LIMIT));
     List<CarWashExplorationDto.CarWashSummary> summaries = visibleRows.stream().map(CarWashExplorationDto.CarWashSummary::from).toList();
     return new CarWashSearchDto.Response(summaries, rows.size() > SEARCH_LIMIT);
