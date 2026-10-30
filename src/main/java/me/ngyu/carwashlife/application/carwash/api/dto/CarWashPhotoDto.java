@@ -19,7 +19,7 @@ public class CarWashPhotoDto {
      * 업로드 파일을 크기 제한 안에서 읽어 도메인 값으로 변환한다.
      */
     public CarWashPhotoUpload toDomain() {
-      if (file == null || file.isEmpty()) {
+      if (file.isEmpty()) {
         throw new ApplicationException(ErrorCode.VALIDATION_ERROR);
       }
       if (file.getSize() > CarWashPhotoUpload.MAX_BYTES) {
