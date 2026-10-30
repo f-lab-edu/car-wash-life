@@ -8,6 +8,8 @@ import me.ngyu.carwashlife.application.carwash.domain.CarWashExplorationResult;
 import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.carwash.domain.MapBounds;
 import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -34,6 +36,15 @@ public interface CarWashRepository extends JpaRepository<CarWash, Long> {
           group by carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude, carWash.createdAt
           """;
 
+  // 이름 검색의 정렬 방식과 관계없이 같은 이름 조건과 제보 집계 기준을 사용한다.
+  String SEARCH_FROM_WHERE_GROUP_BY = """
+          from CarWashHistory history
+          join history.carWash carWash
+          join carWash.targetHistory representative
+          where locate(:keyword, carWash.name) > 0
+          group by carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude, carWash.createdAt
+          """;
+
   @Query("""
           select carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude,
                  count(history), max(history.submittedAt), carWash.createdAt, cast(null as Double)
@@ -49,6 +60,22 @@ public interface CarWashRepository extends JpaRepository<CarWash, Long> {
           order by
           """ + DISTANCE_METERS + " asc, carWash.id asc")
   List<CarWashExplorationResult> findWithinBoundsByDistance(@Param("bounds") MapBounds bounds, @Param("current") Coordinates current, Limit limit);
+
+  @Query("""
+          select carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude,
+                 count(history), max(history.submittedAt), carWash.createdAt, cast(null as Double)
+          """ + SEARCH_FROM_WHERE_GROUP_BY + """
+          order by carWash.id asc
+          """)
+  Slice<CarWashExplorationResult> findByNameContaining(@Param("keyword") String keyword, Pageable pageable);
+
+  @Query("""
+          select carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude,
+                 count(history), max(history.submittedAt), carWash.createdAt,
+          """ + DISTANCE_METERS + SEARCH_FROM_WHERE_GROUP_BY + """
+          order by
+          """ + DISTANCE_METERS + " asc, carWash.id asc")
+  Slice<CarWashExplorationResult> findByNameContainingByDistance(@Param("keyword") String keyword, @Param("current") Coordinates current, Pageable pageable);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select carWash from CarWash carWash where carWash.id = :id")

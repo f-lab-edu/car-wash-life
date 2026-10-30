@@ -1,0 +1,80 @@
+import csv
+import io
+import json
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+from generate_region_snapshot import generate
+
+
+class RegionSnapshotTest(unittest.TestCase):
+    def test_cli_writes_tsv_to_stdout_and_diagnostics_to_stderr(self):
+        feature = self.feature("종로구", "11110", "1111053000", "사직동", [[[[127.0, 37.0], [127.5, 37.5], [127.0, 37.0]]]])
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.json"
+            source.write_text(json.dumps({"features": [feature]}), encoding="utf-8")
+            result = subprocess.run([sys.executable, str(Path(__file__).with_name("generate_region_snapshot.py")), str(source)],
+                                    capture_output=True, text=True, encoding="utf-8", check=True)
+
+        rows = list(csv.DictReader(io.StringIO(result.stdout), delimiter="\t"))
+        self.assertEqual(len(rows), 3)
+        self.assertIn("1 features -> 3 regions", result.stderr)
+        self.assertIn("source SHA-256:", result.stderr)
+
+    def test_cli_fails_without_writing_a_snapshot_if_source_is_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "missing.json"
+            result = subprocess.run([sys.executable, str(Path(__file__).with_name("generate_region_snapshot.py")), str(source)],
+                                    capture_output=True, text=True, encoding="utf-8")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
+    def test_bounds_keep_every_polygon_point_and_aggregate_whole_city(self):
+        features = [
+            self.feature("시흥시동구", "41111", "4111151000", "첫동",
+                         [[[[126.12345678901235, 37.2], [126.5, 37.4], [126.12345678901235, 37.2]]]]),
+            self.feature("시흥시서구", "41113", "4111351000", "둘째동",
+                         [[[[126.8, 37.7], [127.2, 38.1], [126.8, 37.7]]],
+                          [[[125.9, 36.9], [126.0, 37.0], [125.9, 36.9]]]])]
+        regions = self.snapshot(features)
+        city = regions["CITY:41:시흥시"]
+        self.assertEqual(city["name"], "시흥시")
+        self.assertEqual(regions["SGG:41111"]["parentName"], "경기도 시흥시")
+        self.assertEqual(regions["SGG:41111"]["name"], "동구")
+        self.assertEqual(float(city["southwestLatitude"]), 36.9)
+        self.assertEqual(float(city["southwestLongitude"]), 125.9)
+        self.assertEqual(float(city["northeastLatitude"]), 38.1)
+        self.assertEqual(float(city["northeastLongitude"]), 127.2)
+        self.assertEqual(float(regions["EMD:4111151000"]["southwestLongitude"]), 126.12345678901235)
+
+    def test_sejong_has_one_parent_result(self):
+        feature = self.feature("세종시", "36110", "3611051000", "첫동", [[[[127.0, 36.0], [127.5, 36.5], [127.0, 36.0]]]])
+        feature["properties"].update(sido="36", sidonm="세종특별자치시", adm_nm="세종특별자치시 세종시 첫동")
+        regions = self.snapshot([feature])
+        self.assertEqual(len(regions), 2)
+        self.assertNotIn("SGG:36110", regions)
+        self.assertEqual(regions["EMD:3611051000"]["parentName"], "세종특별자치시")
+
+    @staticmethod
+    def feature(district, code, town_code, town, coordinates):
+        return {"properties": {"sido": "41", "sidonm": "경기도", "sgg": code, "sggnm": district,
+                               "adm_cd2": town_code, "adm_nm": f"경기도 {district} {town}"},
+                "geometry": {"type": "MultiPolygon", "coordinates": coordinates}}
+
+    @staticmethod
+    def snapshot(features):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.json"
+            source.write_text(json.dumps({"features": features}), encoding="utf-8")
+            snapshot = io.StringIO(newline="")
+            generate(source, snapshot)
+            snapshot.seek(0)
+            return {row["regionId"]: row for row in csv.DictReader(snapshot, delimiter="\t")}
+
+
+if __name__ == "__main__":
+    unittest.main()

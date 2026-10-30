@@ -28,7 +28,7 @@ public class SecurityConfig {
                                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
                     .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/car-washes", "/car-washes/{carWashId}", "/car-wash-photos/{photoId}").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/car-washes", "/car-washes/{carWashId}", "/car-wash-photos/{photoId}", "/regions/search").permitAll()
                     .anyRequest().authenticated())
             .exceptionHandling(exception -> exception
                     .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
