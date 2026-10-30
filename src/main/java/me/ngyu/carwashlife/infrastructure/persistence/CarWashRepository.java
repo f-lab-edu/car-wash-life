@@ -8,6 +8,8 @@ import me.ngyu.carwashlife.application.carwash.domain.CarWashExplorationResult;
 import me.ngyu.carwashlife.application.carwash.domain.Coordinates;
 import me.ngyu.carwashlife.application.carwash.domain.MapBounds;
 import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -65,7 +67,7 @@ public interface CarWashRepository extends JpaRepository<CarWash, Long> {
           """ + SEARCH_FROM_WHERE_GROUP_BY + """
           order by carWash.id asc
           """)
-  List<CarWashExplorationResult> findByNameContaining(@Param("keyword") String keyword, Limit limit);
+  Slice<CarWashExplorationResult> findByNameContaining(@Param("keyword") String keyword, Pageable pageable);
 
   @Query("""
           select carWash.id, carWash.name, representative.address, carWash.coordinates.latitude, carWash.coordinates.longitude,
@@ -73,7 +75,7 @@ public interface CarWashRepository extends JpaRepository<CarWash, Long> {
           """ + DISTANCE_METERS + SEARCH_FROM_WHERE_GROUP_BY + """
           order by
           """ + DISTANCE_METERS + " asc, carWash.id asc")
-  List<CarWashExplorationResult> findByNameContainingByDistance(@Param("keyword") String keyword, @Param("current") Coordinates current, Limit limit);
+  Slice<CarWashExplorationResult> findByNameContainingByDistance(@Param("keyword") String keyword, @Param("current") Coordinates current, Pageable pageable);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select carWash from CarWash carWash where carWash.id = :id")

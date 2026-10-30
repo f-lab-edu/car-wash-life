@@ -26,6 +26,8 @@ import me.ngyu.carwashlife.infrastructure.persistence.CarWashHistoryRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.CarWashRepository;
 import me.ngyu.carwashlife.infrastructure.persistence.MemberRepository;
 import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,9 +37,6 @@ public class CarWashService {
 
   // 지도 응답 크기를 제한한다. 추가 결과 여부는 한 건 더 조회해 판단한다.
   private static final int EXPLORATION_LIMIT = 100;
-
-  // 검색 응답 크기를 제한한다. 추가 결과 여부는 한 건 더 조회해 판단한다.
-  private static final int SEARCH_LIMIT = 100;
 
   private final CarWashRepository carWashRepository;
   private final CarWashHistoryRepository historyRepository;
@@ -139,17 +138,17 @@ public class CarWashService {
   }
 
   /**
-   * 현재 대표 이름에 검색어가 포함된 세차장을 현재 위치 유무에 따른 순서로 조회한다.
+   * 현재 대표 이름에 검색어가 포함된 세차장을 현재 위치 유무에 따른 순서로 페이지 조회한다.
    */
   @Transactional(readOnly = true)
   public CarWashSearchDto.Response search(CarWashSearch search) {
     Coordinates currentCoordinates = search.currentCoordinates();
-    List<CarWashExplorationResult> rows = currentCoordinates == null
-                                         ? carWashRepository.findByNameContaining(search.keyword(), Limit.of(SEARCH_LIMIT + 1))
-                                         : carWashRepository.findByNameContainingByDistance(search.keyword(), currentCoordinates, Limit.of(SEARCH_LIMIT + 1));
-    List<CarWashExplorationResult> visibleRows = rows.subList(0, Math.min(rows.size(), SEARCH_LIMIT));
-    List<CarWashExplorationDto.CarWashSummary> summaries = visibleRows.stream().map(CarWashExplorationDto.CarWashSummary::from).toList();
-    return new CarWashSearchDto.Response(summaries, rows.size() > SEARCH_LIMIT);
+    PageRequest pageRequest = PageRequest.of(search.page(), search.size());
+    Slice<CarWashExplorationResult> rows = currentCoordinates == null
+                                          ? carWashRepository.findByNameContaining(search.keyword(), pageRequest)
+                                          : carWashRepository.findByNameContainingByDistance(search.keyword(), currentCoordinates, pageRequest);
+    List<CarWashExplorationDto.CarWashSummary> summaries = rows.getContent().stream().map(CarWashExplorationDto.CarWashSummary::from).toList();
+    return new CarWashSearchDto.Response(summaries, rows.hasNext());
   }
 
   /**

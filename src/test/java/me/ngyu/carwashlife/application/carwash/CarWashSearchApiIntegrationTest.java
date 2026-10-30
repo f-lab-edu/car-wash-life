@@ -121,6 +121,14 @@ class CarWashSearchApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("검색어에 NUL 문자가 포함되면 요청 검증 오류로 응답한다.")
+  void rejectsNullCharacterBeforeSearching() throws Exception {
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세\0차"))
+           .andExpect(result -> assertThat(result.getResolvedException()).isInstanceOf(MethodArgumentNotValidException.class))
+           .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+  }
+
+  @Test
   @DisplayName("앞뒤 공백을 제외한 검색어가 100자이면 요청을 허용한다.")
   void acceptsMaximumKeywordLengthAfterStripping() throws Exception {
     String keyword = "가".repeat(100);
@@ -308,6 +316,97 @@ class CarWashSearchApiIntegrationTest {
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.carWashes[0].carWashId").value(matching.getId()))
            .andExpect(jsonPath("$.carWashes[0].distanceMeters").value(0.0));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @CsvSource({"0,0,2,true", "1,2,4,true", "2,4,5,false", "3,5,5,false"})
+  @DisplayName("ID순 페이지는 결과를 건너뛰지 않고 이어서 반환하며 마지막과 빈 페이지에는 다음 결과가 없다.")
+  void pagesIdOrderWithoutSkippingResults(int page, int from, int to, boolean hasMore) throws Exception {
+    List<Long> ids = new ArrayList<>();
+    for (int index = 0; index < 5; index++) {
+      ids.add(save("세차생활 " + index).getId());
+    }
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("page", Integer.toString(page)).param("size", "2"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes.length()").value(to - from))
+           .andExpect(jsonPath("$.hasMore").value(hasMore))
+           .andExpect(result -> {
+             List<Number> returnedIds = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[*].carWashId");
+             assertThat(returnedIds.stream().map(Number::longValue).toList()).containsExactlyElementsOf(ids.subList(from, to));
+           });
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @CsvSource({"0,0,2,true", "1,2,4,true", "2,4,5,false", "3,5,5,false"})
+  @DisplayName("거리순 페이지는 같은 거리의 ID순을 유지하며 중복이나 누락 없이 이어진다.")
+  void pagesDistanceOrderAndIdTiesWithoutSkippingResults(int page, int from, int to, boolean hasMore) throws Exception {
+    CarWash farther = save("세차생활 먼 지점", new Coordinates(0.0, 2.0));
+    CarWash firstTie = save("세차생활 동쪽", new Coordinates(0.0, 1.0));
+    CarWash secondTie = save("세차생활 서쪽", new Coordinates(0.0, -1.0));
+    CarWash thirdTie = save("세차생활 북쪽", new Coordinates(1.0, 0.0));
+    CarWash nearest = save("세차생활 현재 위치", new Coordinates(0.0, 0.0));
+    List<Long> ids = List.of(nearest.getId(), firstTie.getId(), secondTie.getId(), thirdTie.getId(), farther.getId());
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("currentLatitude", "0").param("currentLongitude", "0")
+                                          .param("page", Integer.toString(page)).param("size", "2"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes.length()").value(to - from))
+           .andExpect(jsonPath("$.hasMore").value(hasMore))
+           .andExpect(result -> {
+             List<Number> returnedIds = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[*].carWashId");
+             assertThat(returnedIds.stream().map(Number::longValue).toList()).containsExactlyElementsOf(ids.subList(from, to));
+           });
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @CsvSource({"1,1,true", "100,2,false"})
+  @DisplayName("페이지 번호를 생략하면 첫 페이지를 반환하고 페이지 크기의 최솟값과 최댓값을 허용한다.")
+  void defaultsPageAndAcceptsSizeBoundaries(int size, int count, boolean hasMore) throws Exception {
+    CarWash first = save("세차생활 첫 지점");
+    save("세차생활 두 번째 지점");
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("size", Integer.toString(size)))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes.length()").value(count))
+           .andExpect(jsonPath("$.carWashes[0].carWashId").value(first.getId()))
+           .andExpect(jsonPath("$.hasMore").value(hasMore));
+  }
+
+  @Test
+  @DisplayName("페이지 크기를 생략하면 100개 단위로 다음 페이지를 조회한다.")
+  void defaultsSizeWhenOnlyPageIsProvided() throws Exception {
+    for (int index = 0; index < 100; index++) {
+      save("세차생활 " + index);
+    }
+    CarWash last = save("세차생활 마지막 지점");
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("page", "1"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes.length()").value(1))
+           .andExpect(jsonPath("$.carWashes[0].carWashId").value(last.getId()))
+           .andExpect(jsonPath("$.hasMore").value(false));
+  }
+
+  @ParameterizedTest(name = "[{index}] {displayName}")
+  @CsvSource({"page,-1", "size,0", "size,-1", "size,101", "page,text", "size,text", "page,2147483648", "size,2147483648", "page,21474837"})
+  @DisplayName("페이지 번호·크기가 잘못되거나 조회 시작 위치가 범위를 넘으면 요청 검증 오류로 응답한다.")
+  void rejectsInvalidPaginationBeforeDomainConversion(String parameter, String value) throws Exception {
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param(parameter, value))
+           .andExpect(result -> assertThat(result.getResolvedException()).isInstanceOf(MethodArgumentNotValidException.class))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+  }
+
+  @Test
+  @DisplayName("조회 시작 위치가 int 최댓값이어도 유효한 요청으로 처리한다.")
+  void acceptsMaximumOffset() throws Exception {
+    save("세차생활");
+
+    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("page", "2147483647").param("size", "1"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.carWashes").isEmpty())
+           .andExpect(jsonPath("$.hasMore").value(false));
   }
 
   private CarWash save(String name) {
