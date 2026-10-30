@@ -7,7 +7,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import me.ngyu.carwashlife.application.region.domain.Region;
 import me.ngyu.carwashlife.application.region.domain.RegionLevel;
 import me.ngyu.carwashlife.common.exception.ApplicationException;
@@ -36,6 +40,26 @@ class RegionCatalogTest {
     assertThat(regions.stream().filter(region -> region.level() == RegionLevel.ADMINISTRATIVE_DISTRICT)).hasSize(3559);
     assertThat(regions.stream().filter(region -> region.fullName().equals("세종특별자치시"))).hasSize(1);
     assertThat(regions.stream().map(Region::fullName)).doesNotContain("세종특별자치시 세종시");
+  }
+
+  @Test
+  @DisplayName("동시에 지역을 조회해도 정상적으로 읽은 동일한 스냅샷을 공유한다.")
+  void concurrentRequestsShareLoadedSnapshot() throws Exception {
+    RegionCatalog catalog = new RegionCatalog(new DefaultResourceLoader());
+    try (var executor = Executors.newFixedThreadPool(8)) {
+      CountDownLatch start = new CountDownLatch(1);
+      var results = IntStream.range(0, 8).mapToObj(index -> executor.submit((Callable<List<Region>>) () -> {
+        start.await();
+        return catalog.findAll();
+      })).toList();
+      start.countDown();
+      List<Region> snapshot = results.get(0).get();
+
+      assertThat(snapshot).hasSize(3843);
+      for (var result : results) {
+        assertThat(result.get()).isSameAs(snapshot);
+      }
+    }
   }
 
   @Test

@@ -31,22 +31,16 @@ public class RegionCatalog {
 
   private final ResourceLoader resourceLoader;
 
-  private volatile List<Region> regions;
+  private List<Region> regions;
 
   /**
    * 정상 스냅샷만 캐시한다. 로드 실패는 다음 요청에서 다시 시도하며 원인은 5xx 예외 처리기가 기록한다.
    */
-  public List<Region> findAll() {
-    List<Region> snapshot = regions;
-    if (snapshot != null) {
-      return snapshot;
+  public synchronized List<Region> findAll() {
+    if (regions == null) {
+      regions = load();
     }
-    synchronized (this) {
-      if (regions == null) {
-        regions = load();
-      }
-      return regions;
-    }
+    return regions;
   }
 
   private List<Region> load() {
