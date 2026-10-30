@@ -1,5 +1,8 @@
 import csv
+import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,6 +11,28 @@ from generate_region_snapshot import generate
 
 
 class RegionSnapshotTest(unittest.TestCase):
+    def test_cli_writes_tsv_to_stdout_and_diagnostics_to_stderr(self):
+        feature = self.feature("종로구", "11110", "1111053000", "사직동", [[[[127.0, 37.0], [127.5, 37.5], [127.0, 37.0]]]])
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.json"
+            source.write_text(json.dumps({"features": [feature]}), encoding="utf-8")
+            result = subprocess.run([sys.executable, str(Path(__file__).with_name("generate_region_snapshot.py")), str(source)],
+                                    capture_output=True, text=True, encoding="utf-8", check=True)
+
+        rows = list(csv.DictReader(io.StringIO(result.stdout), delimiter="\t"))
+        self.assertEqual(len(rows), 3)
+        self.assertIn("1 features -> 3 regions", result.stderr)
+        self.assertIn("source SHA-256:", result.stderr)
+
+    def test_cli_fails_without_writing_a_snapshot_if_source_is_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "missing.json"
+            result = subprocess.run([sys.executable, str(Path(__file__).with_name("generate_region_snapshot.py")), str(source)],
+                                    capture_output=True, text=True, encoding="utf-8")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
     def test_bounds_keep_every_polygon_point_and_aggregate_whole_city(self):
         features = [
             self.feature("시흥시동구", "41111", "4111151000", "첫동",
@@ -44,11 +69,11 @@ class RegionSnapshotTest(unittest.TestCase):
     def snapshot(features):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source.json"
-            destination = Path(directory) / "regions.tsv"
             source.write_text(json.dumps({"features": features}), encoding="utf-8")
-            generate(source, destination)
-            with destination.open(encoding="utf-8") as snapshot:
-                return {row["regionId"]: row for row in csv.DictReader(snapshot, delimiter="\t")}
+            snapshot = io.StringIO(newline="")
+            generate(source, snapshot)
+            snapshot.seek(0)
+            return {row["regionId"]: row for row in csv.DictReader(snapshot, delimiter="\t")}
 
 
 if __name__ == "__main__":

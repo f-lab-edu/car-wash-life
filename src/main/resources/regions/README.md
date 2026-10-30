@@ -18,7 +18,7 @@
 ```sh
 curl -L https://raw.githubusercontent.com/vuski/admdongkor/3bc00489b76696db864bdbea4b19985cdfa8b403/ver20261001/HangJeongDong_ver20261001.geojson -o /tmp/carwash-admin-20261001.geojson
 shasum -a 256 /tmp/carwash-admin-20261001.geojson
-python3 scripts/generate_region_snapshot.py /tmp/carwash-admin-20261001.geojson src/main/resources/regions/administrative-regions-20261001.tsv
+python3 scripts/generate_region_snapshot.py /tmp/carwash-admin-20261001.geojson > /tmp/carwash-regions.tsv
 ```
 
-원본 URL은 커밋으로 고정했으며 재생성 전 다운로드한 파일의 해시를 위 값과 비교한다. 갱신 시에는 원본 버전·URL·해시, 스냅샷 파일명, 로더의 경로와 기대 항목 수(`EXPECTED_REGION_COUNT`)를 함께 수정하고, 동명 지역·일반구의 상위 시 집계·지도 범위 연결 테스트를 실행한다. 고정 기대 항목 수와 다른 파일은 중간에서 잘린 스냅샷일 수 있으므로 로드 실패로 처리한다. 스냅샷의 정상 로드 결과만 메모리에 캐시한다. 로드 실패는 빈 검색 결과로 처리하지 않고 503 `REGION_SEARCH_UNAVAILABLE`로 응답하며, 다음 요청에서 다시 로드하므로 원본 리소스를 복구한 뒤 재시도할 수 있다. 배포 산출물에 포함된 파일을 바꾸려면 새 산출물 배포가 필요하다.
+원본 URL은 커밋으로 고정했으며 재생성 전 다운로드한 파일의 해시를 위 값과 비교한다. 생성한 임시 파일을 확인한 후 스냅샷을 교체한다. 갱신 시에는 원본 버전·URL·해시, 스냅샷 파일명, 로더의 경로와 기대 항목 수(`EXPECTED_REGION_COUNT`)를 함께 수정하고, 동명 지역·일반구의 상위 시 집계·지도 범위 연결 테스트를 실행한다. 고정 기대 항목 수와 다른 파일은 중간에서 잘린 스냅샷일 수 있으므로 로드 실패로 처리한다. 스냅샷의 정상 로드 결과만 메모리에 캐시한다. 로드 실패는 빈 검색 결과로 처리하지 않고 503 `REGION_SEARCH_UNAVAILABLE`로 응답하며, 다음 요청에서 다시 로드하므로 원본 리소스를 복구한 뒤 재시도할 수 있다. 배포 산출물에 포함된 파일을 바꾸려면 새 산출물 배포가 필요하다.

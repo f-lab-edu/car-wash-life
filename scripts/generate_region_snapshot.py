@@ -6,6 +6,7 @@ import csv
 import hashlib
 import json
 import math
+import sys
 from pathlib import Path
 
 
@@ -68,26 +69,24 @@ def add_feature(regions, feature):
     merge(regions, "EMD:" + properties["adm_cd2"], "ADMINISTRATIVE_DISTRICT", town, town_parent, bounds)
 
 
-def generate(source, destination):
+def generate(source, output):
     source_bytes = source.read_bytes()
     collection = json.loads(source_bytes)
     regions = {}
     for feature in collection["features"]:
         add_feature(regions, feature)
 
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with destination.open("w", encoding="utf-8", newline="") as output:
-        writer = csv.writer(output, delimiter="\t", lineterminator="\n")
-        writer.writerow(["regionId", "level", "name", "parentName", "southwestLatitude", "southwestLongitude", "northeastLatitude", "northeastLongitude"])
-        # Float repr preserves original double precision; do not round bounds inwards.
-        writer.writerows(regions[key] for key in sorted(regions))
-    print(f"{len(collection['features'])} features -> {len(regions)} regions")
-    print(f"source SHA-256: {hashlib.sha256(source_bytes).hexdigest()}")
+    writer = csv.writer(output, delimiter="\t", lineterminator="\n")
+    writer.writerow(["regionId", "level", "name", "parentName", "southwestLatitude", "southwestLongitude", "northeastLatitude", "northeastLongitude"])
+    # Float repr preserves original double precision; do not round bounds inwards.
+    writer.writerows(regions[key] for key in sorted(regions))
+    print(f"{len(collection['features'])} features -> {len(regions)} regions", file=sys.stderr)
+    print(f"source SHA-256: {hashlib.sha256(source_bytes).hexdigest()}", file=sys.stderr)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
-    parser.add_argument("destination", type=Path)
     arguments = parser.parse_args()
-    generate(arguments.source, arguments.destination)
+    sys.stdout.reconfigure(encoding="utf-8", newline="")
+    generate(arguments.source, sys.stdout)
