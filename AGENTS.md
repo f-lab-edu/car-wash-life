@@ -7,6 +7,7 @@
 - 기능은 `application/{feature}/{api,domain,service}`, DTO는 `api/dto`, Spring Data Repository는 `infrastructure/persistence`에 둔다. 현재 JPA Entity를 도메인 모델로 사용한다.
 - Java 포맷은 루트 `GoogleStyle.xml`을 따른다. DI는 `@RequiredArgsConstructor`와 `private final` 필드를 사용하며, 검증·초기화 본문이 필요한 생성자는 명시한다.
 - 기존 동작과 테스트 의도를 보존하고 관련 테스트를 실행한다. 미실행·실패·검증 한계는 보고한다. 로컬 검증과 외부 CI 결과를 구분한다.
+- `docs/api`를 만들지 않는다. 성능 기록은 사용자가 정한 위치와 커밋 방침을 따른다.
 
 ## 브랜치
 
@@ -24,6 +25,7 @@
 | Java 소스·테스트 작성 또는 포맷 검토 | [.agents/skills/develop-feature/references/java-style.md](.agents/skills/develop-feature/references/java-style.md) |
 | 객체·모듈 책임, API·도메인·DTO·JPA·예외 설계 변경 또는 해당 코드 리뷰 | [.agents/skills/develop-feature/references/domain-design.md](.agents/skills/develop-feature/references/domain-design.md) |
 | 테스트 작성·실행 또는 테스트 적절성 검토 | [.agents/skills/develop-feature/references/testing.md](.agents/skills/develop-feature/references/testing.md) |
+| 설계 판단, 코드 리뷰 또는 리뷰 지적 반영 | [.agents/skills/review-perspective/SKILL.md](.agents/skills/review-perspective/SKILL.md) |
 | 인증·회원가입·토큰 관련 작업 | [.agents/skills/develop-feature/references/authentication.md](.agents/skills/develop-feature/references/authentication.md) |
 
 여러 계층의 구현은 `develop-feature`, 독립 검토는 `review-change`, PR·SonarCloud 지적 반영은 `apply-review` 스킬을 사용한다. 단순 변경에 불필요한 위임을 추가하지 않는다.
