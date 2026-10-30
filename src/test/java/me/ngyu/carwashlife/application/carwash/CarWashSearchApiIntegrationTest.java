@@ -265,14 +265,13 @@ class CarWashSearchApiIntegrationTest {
     expectedIds.add(nearestId);
     expectedIds.addAll(fartherIds.subList(0, 99));
 
-    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("currentLatitude", "0").param("currentLongitude", "0"))
-           .andExpect(status().isOk())
-           .andExpect(jsonPath("$.carWashes.length()").value(100))
-           .andExpect(jsonPath("$.hasMore").value(count > 100))
-           .andExpect(result -> {
-             List<Number> ids = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[*].carWashId");
-             assertThat(ids.stream().map(Number::longValue).toList()).containsExactlyElementsOf(expectedIds);
-           });
+    String body = mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("currentLatitude", "0").param("currentLongitude", "0"))
+                         .andExpect(status().isOk())
+                         .andExpect(jsonPath("$.carWashes.length()").value(100))
+                         .andExpect(jsonPath("$.hasMore").value(count > 100))
+                         .andReturn().getResponse().getContentAsString();
+    List<Number> ids = JsonPath.read(body, "$.carWashes[*].carWashId");
+    assertThat(ids.stream().map(Number::longValue).toList()).containsExactlyElementsOf(expectedIds);
   }
 
   @Test
@@ -327,14 +326,13 @@ class CarWashSearchApiIntegrationTest {
       ids.add(save("세차생활 " + index).getId());
     }
 
-    mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("page", Integer.toString(page)).param("size", "2"))
-           .andExpect(status().isOk())
-           .andExpect(jsonPath("$.carWashes.length()").value(to - from))
-           .andExpect(jsonPath("$.hasMore").value(hasMore))
-           .andExpect(result -> {
-             List<Number> returnedIds = JsonPath.read(result.getResponse().getContentAsString(), "$.carWashes[*].carWashId");
-             assertThat(returnedIds.stream().map(Number::longValue).toList()).containsExactlyElementsOf(ids.subList(from, to));
-           });
+    String body = mockMvc.perform(get("/car-washes/search").param("keyword", "세차생활").param("page", Integer.toString(page)).param("size", "2"))
+                         .andExpect(status().isOk())
+                         .andExpect(jsonPath("$.carWashes.length()").value(to - from))
+                         .andExpect(jsonPath("$.hasMore").value(hasMore))
+                         .andReturn().getResponse().getContentAsString();
+    List<Number> returnedIds = JsonPath.read(body, "$.carWashes[*].carWashId");
+    assertThat(returnedIds.stream().map(Number::longValue).toList()).containsExactlyElementsOf(ids.subList(from, to));
   }
 
   @ParameterizedTest(name = "[{index}] {displayName}")
